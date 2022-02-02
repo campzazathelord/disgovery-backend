@@ -1,5 +1,5 @@
 const Translation = require('../../models/Translation')
-exports.getStationDetails = async function healthCheck(req, res) {
+exports.getStationDetails = async function getStationDetails(req, res) {
     let kuy1 = []
     const kuy = await Translation.findAll()
     kuy.forEach(x=>{
