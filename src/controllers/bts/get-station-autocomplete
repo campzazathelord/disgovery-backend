@@ -1,0 +1,11 @@
+const Stop = require('../../models/Stop')
+const Fuzzy = require('../../functions/Fuzzy')
+exports.getStationAutocomplete = async function healthCheck(req, res) {
+    try {
+        const stations = await Stop.findAll()
+        const result = Fuzzy(stations,req.query.places)
+        res.status(200).send(result)
+    } catch (error) {
+        res.send(error).status(500)
+    }
+};

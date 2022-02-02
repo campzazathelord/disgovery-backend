@@ -30,4 +30,5 @@ const Translation = sequelize.define('translations',{
     createdAt: false,
     updatedAt: false
   })
+Translation.removeAttribute('id');
 module.exports = Translation
