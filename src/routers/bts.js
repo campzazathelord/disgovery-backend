@@ -1,5 +1,5 @@
 const express = require("express");
-const Stationbts = require("../models/stationbts");
+const Translation = require("../models/Translation");
 const router = new express.Router();
 const axios = require("axios");
 const { getRoutes } = require("../controllers/bts/get-routes");
