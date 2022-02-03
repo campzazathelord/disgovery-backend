@@ -8,7 +8,7 @@ const StationDetails = async (arr) => {
         let tmpStrDetails = {
             station_id: tmpStation.stop_id,
             name: {
-                en: tmpStation.stop_name,
+                en: tmpStation.stop_name.trim(),
                 th: "ไม่มีข้อมูล",
             },
             location: {
