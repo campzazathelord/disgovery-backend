@@ -15,7 +15,7 @@ router.get("/healthcheck", healthCheck);
 router.get("/getroutes/:id1/:id2", getRoutes);
 router.get("/getfarerates/:id1/:id2", getFareRates);
 router.get("/getstationdetails", getStationDetails);
-router.get("/getstationautocomplete", getStationAutocomplete);
+router.get("/autocomplete/places", getStationAutocomplete);
 
 router.post("/:id/test", test);
 
