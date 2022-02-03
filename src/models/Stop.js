@@ -56,5 +56,5 @@ const Stop = sequelize.define(
         updatedAt: false,
     },
 );
-Stop.removeAttribute("id");
+
 module.exports = Stop;

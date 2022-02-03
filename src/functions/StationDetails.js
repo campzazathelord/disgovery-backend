@@ -1,4 +1,5 @@
 const Stop = require("../models/Stop");
+
 const StationDetails = async (arr) => {
     let tmpArr = [];
 
@@ -19,6 +20,7 @@ const StationDetails = async (arr) => {
         };
         tmpArr.push(tmpStrDetails);
     }
+
     return tmpArr;
 };
 module.exports = StationDetails;

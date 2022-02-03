@@ -1,9 +1,11 @@
 const Fuse = require("fuse.js");
+
 const Fuzzy = (arr, str) => {
     let list = [];
     arr.forEach((x) => {
         list.push(x.stop_name);
     });
+
     const options = {
         includeScore: true,
     };
