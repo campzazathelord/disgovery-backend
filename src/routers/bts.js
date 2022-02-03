@@ -4,8 +4,7 @@ const { getRoutes } = require("../controllers/bts/get-routes");
 const { getFareRates } = require("../controllers/bts/get-fare-rates");
 const { healthCheck } = require("../controllers/health-check");
 const {getStationDetails} = require('../controllers/bts/get-station-details')
-const {getStationAutoComplete} = require('../controllers/bts/get-station-autocomplete');
-const { getStationAutocomplete } = require("../controllers/bts/get-station-autocomplete");
+const { getStationAutocomplete } = require("../controllers/autocomplete/stations-autocomplete");
 
 const formUrlEncoded = (x) =>
     Object.keys(x).reduce((p, c) => p + `&${c}=${encodeURIComponent(x[c])}`, "");
