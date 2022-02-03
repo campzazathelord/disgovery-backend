@@ -3,7 +3,7 @@ const router = new express.Router();
 const { getRoutes } = require("../controllers/bts/get-routes");
 const { getFareRates } = require("../controllers/bts/get-fare-rates");
 const { healthCheck } = require("../controllers/health-check");
-const {getStationDetails} = require('../controllers/bts/get-station-details')
+const { getStationDetails } = require("../controllers/bts/get-station-details");
 const { getStationAutocomplete } = require("../controllers/autocomplete/stations-autocomplete");
 
 const formUrlEncoded = (x) =>
@@ -13,7 +13,7 @@ router.get("/healthcheck", healthCheck);
 
 router.get("/getroutes/:id1/:id2", getRoutes);
 router.get("/getfarerates/:id1/:id2", getFareRates);
-router.get('/getstationdetails',getStationDetails)
-router.get('/getstationautocomplete',getStationAutocomplete)
+router.get("/getstationdetails", getStationDetails);
+router.get("/getstationautocomplete", getStationAutocomplete);
 
 module.exports = router;
