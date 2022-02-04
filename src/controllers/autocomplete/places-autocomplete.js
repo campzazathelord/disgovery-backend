@@ -1,11 +1,17 @@
+const APIStatus = require("../../configs/api-errors");
 const { placesAutoComplete, placeCoords } = require("../../functions/PlacesDetails");
 
 exports.getPlacesAutocomplete = async function getPlacesAutocomplete(req, res) {
+    const query = req.query.query;
+
+    if (!query) return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
+
     try {
-        let dataStationAutoComplete = await placesAutoComplete(String(req.query.places));
+        let dataStationAutoComplete = await placesAutoComplete(String(query));
         let placeDetail = await placeCoords(dataStationAutoComplete);
-        res.send(placeDetail).status(200);
+
+        return res.send(placeDetail).status(APIStatus.OK.status);
     } catch (error) {
-        res.send(error).status(500);
+        return res.send(error).status(APIStatus.INTERNAL.SERVER_ERROR.status);
     }
 };
