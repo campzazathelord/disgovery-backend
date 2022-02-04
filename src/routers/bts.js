@@ -4,7 +4,7 @@ const { getRoutes } = require("../controllers/bts/get-routes");
 const { getFareRates } = require("../controllers/bts/get-fare-rates");
 const { getPlacesAutocomplete } = require("../controllers/autocomplete/places-autocomplete");
 const { healthCheck } = require("../controllers/health-check");
-const { getStationDetails } = require("../controllers/bts/get-station-details");
+const { getStationDetails } = require("../controllers/stations/get-station-details");
 const { getStationAutocomplete } = require("../controllers/autocomplete/stations-autocomplete");
 const { test } = require("../controllers/test");
 const { getNearbyStations } = require("../controllers/stations/get-nearby-stations");
@@ -16,7 +16,7 @@ router.get("/healthcheck", healthCheck); // Health Check
 
 router.get("/getroutes/:id1/:id2", getRoutes);
 router.get("/getfarerates/:id1/:id2", getFareRates);
-router.get("/getstationdetails", getStationDetails);
+router.get("/station/:uid", getStationDetails);
 
 router.get("/station/nearby", getNearbyStations); // API 1-1
 

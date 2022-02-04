@@ -6,14 +6,14 @@ const { logger } = require("../configs/config");
 logger.info("Connecting to the database...");
 
 const sequelize = new Sequelize(
-    process.env.MYSQL_DATABASE || "DisgoveryDatabase",
-    process.env.MYSQL_USER || "admin",
-    process.env.MYSQL_PASSWORD || "disgovery",
+    process.env.MYSQL_DATABASE || "database",
+    process.env.MYSQL_USER || "undefined",
+    process.env.MYSQL_PASSWORD || "undefined",
     {
         dialect: "mysql",
         host:
             process.env.MYSQL_HOST ||
-            "disgovery-database.cg25477elnau.ap-southeast-1.rds.amazonaws.com",
+            "http://localhost:3301",
         logging: (msg) => logger.info(`[DATABASE] ${msg}`),
     },
 );
