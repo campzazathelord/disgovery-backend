@@ -29,6 +29,7 @@ const placesAutoComplete = async (str) => {
 
 const placeCoords = async (arr) => {
     let newArr = [];
+
     for (let x of arr.resultEn) {
         const latitude = await axios({
             method: "get",
@@ -44,11 +45,12 @@ const placeCoords = async (arr) => {
             location: {
                 coords: latitude.data.result.geometry.location,
             },
-            google_plus_code: "-",
+            place_id: x.place_id,
             address: {
                 en: x.structured_formatting.secondary_text,
             },
         };
+
         newArr.push(tmpObj);
     }
 
