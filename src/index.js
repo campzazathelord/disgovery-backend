@@ -1,7 +1,11 @@
 require("dotenv").config();
 const express = require("express");
 const sequelize = require("../src/db/database");
+const { checkStructEnv, logger } = require("./configs/config");
+const config = require("./configs/config");
 const btsRouter = require("./routers/bts");
+
+checkStructEnv();
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -12,9 +16,9 @@ sequelize
     .sync()
     .then(() => {
         app.listen(process.env.PORT || 3000, () => {
-            console.log("Server is up on port " + process.env.PORT || 3000);
+            logger.info("Server is up on port " + process.env.PORT || 3000);
         });
     })
     .catch(() => {
-        console.log("error");
+        logger.error("error");
     });
