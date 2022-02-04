@@ -43,4 +43,6 @@ const Translation = sequelize.define(
         updatedAt: false,
     },
 );
+
+Translation.removeAttribute("id");
 module.exports = Translation;

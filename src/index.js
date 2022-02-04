@@ -8,7 +8,13 @@ const port = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(btsRouter);
-
-app.listen(port, () => {
-    console.log("Server is up on port " + port);
-});
+sequelize
+    .sync()
+    .then(() => {
+        app.listen(process.env.PORT || 3000, () => {
+            console.log("Server is up on port " + process.env.PORT || 3000);
+        });
+    })
+    .catch(() => {
+        console.log("error");
+    });
