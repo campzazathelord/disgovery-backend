@@ -3,7 +3,7 @@ require("dotenv").config();
 const Sequelize = require("sequelize");
 const { logger } = require("../configs/config");
 
-logger.info("Connecting to the database...")
+logger.info("Connecting to the database...");
 
 const sequelize = new Sequelize(
     process.env.MYSQL_DATABASE || "DisgoveryDatabase",
@@ -14,6 +14,7 @@ const sequelize = new Sequelize(
         host:
             process.env.MYSQL_HOST ||
             "disgovery-database.cg25477elnau.ap-southeast-1.rds.amazonaws.com",
+        logging: (msg) => logger.info(`[DATABASE] ${msg}`),
     },
 );
 module.exports = sequelize;

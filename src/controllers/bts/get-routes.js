@@ -1,6 +1,9 @@
 const axios = require("axios");
+const { logger } = require("../../configs/config");
 
 exports.getRoutes = async function getRoutes(req, res) {
+    logger.info(`${req.method} ${req.baseUrl + req.path}`);
+
     try {
         const data = await axios.post(
             "https://btsapp1.bts.co.th/webservice/api/getRoute",

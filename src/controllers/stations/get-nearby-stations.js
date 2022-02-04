@@ -2,11 +2,14 @@ const Stop = require("../../models/Stop");
 const sequelize = require("../../db/database");
 const APIStatus = require("../../configs/api-errors");
 const { Op } = require("sequelize");
+const { logger } = require("../../configs/config");
 
 const STOP_LAT_COL = "stop_lat";
 const STOP_LNG_COL = "stop_lon";
 
 exports.getNearbyStations = async function (req, res) {
+    logger.info(`${req.method} ${req.baseUrl + req.path}`);
+
     const lat = parseFloat(req.query.lat) || undefined;
     const lng = parseFloat(req.query.lng) || undefined;
     const radiusMetres = parseFloat(req.query.radius) || 500;

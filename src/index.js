@@ -19,6 +19,6 @@ sequelize
             logger.info("Server is up on port " + process.env.PORT || 3000);
         });
     })
-    .catch(() => {
-        logger.error("error");
+    .catch((e) => {
+        logger.error("ERROR: " + e);
     });
