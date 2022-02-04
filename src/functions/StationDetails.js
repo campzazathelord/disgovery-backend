@@ -23,4 +23,5 @@ const StationDetails = async (arr) => {
 
     return tmpArr;
 };
+
 module.exports = StationDetails;
