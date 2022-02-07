@@ -11,10 +11,11 @@ const sequelize = new Sequelize(
     process.env.MYSQL_PASSWORD || "undefined",
     {
         dialect: "mysql",
-        host:
-            process.env.MYSQL_HOST ||
-            "http://localhost:3301",
-        logging: (msg) => logger.info(`[DATABASE] ${msg}`),
+        host: process.env.MYSQL_HOST || "http://localhost:3301",
+        logging: (msg) => {
+            // logger.info(`[DATABASE] ${msg}`)
+        },
     },
 );
+
 module.exports = sequelize;
