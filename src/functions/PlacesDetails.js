@@ -31,19 +31,10 @@ const placeCoords = async (arr) => {
     let newArr = [];
 
     for (let x of arr.resultEn) {
-        const latitude = await axios({
-            method: "get",
-            url: `https://maps.googleapis.com/maps/api/place/details/json?input=bar&placeid=${x.place_id}&key=${process.env.GOOGLE_MAPS_API_KEY}`,
-            headers: {},
-        });
-
         const tmpObj = {
             name: {
                 en: x.structured_formatting.main_text,
                 th: x.structured_formatting.main_text,
-            },
-            location: {
-                coords: latitude.data.result.geometry.location,
             },
             place_id: x.place_id,
             address: {
