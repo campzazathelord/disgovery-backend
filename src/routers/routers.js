@@ -16,9 +16,9 @@ router.get("/healthcheck", healthCheck); // Health Check
 
 router.get("/getroutes/:id1/:id2", getRoutes);
 router.get("/getfarerates/:id1/:id2", getFareRates);
-router.get("/station/:uid", getStationDetails);
 
 router.get("/station/nearby", getNearbyStations); // API 1-1
+router.get("/station/id/:uid", getStationDetails); // API 1-2
 
 router.get("/autocomplete/places", getPlacesAutocomplete); // API 2-1
 router.get("/autocomplete/stations", getStationAutocomplete); // API 2-2

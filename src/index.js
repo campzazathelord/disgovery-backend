@@ -3,7 +3,7 @@ const express = require("express");
 const sequelize = require("../src/db/database");
 const { checkStructEnv, logger } = require("./configs/config");
 const config = require("./configs/config");
-const btsRouter = require("./routers/bts");
+const btsRouter = require("./routers/routers");
 
 checkStructEnv();
 
