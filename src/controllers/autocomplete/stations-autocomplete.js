@@ -13,10 +13,13 @@ exports.getStationAutocomplete = async function getStationAutocomplete(req, res)
     if (!query) return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
 
     try {
-        let tmpStations = [];
-        const stations = await Stop.findAll();
-        const result = Fuzzy(stations, query, max_result);
-
+        const stations = await Stop.findAll({
+            attributes: ['stop_name']
+        })
+        let stationArr = stations.map(x=>{
+            return x['stop_name']
+        })
+        const result = Fuzzy(stationArr, query, max_result);
         const stationDetailsResult = await StationDetails(result);
         return res.status(APIStatus.OK.status).send({ data: stationDetailsResult });
     } catch (error) {
