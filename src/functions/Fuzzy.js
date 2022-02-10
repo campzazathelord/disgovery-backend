@@ -1,8 +1,6 @@
 const Fuse = require("fuse.js");
 
 const Fuzzy = (arr, str, max_result) => {
-
-
     const options = {
         includeScore: true,
     };
