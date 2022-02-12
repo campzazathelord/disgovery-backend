@@ -30,7 +30,7 @@ exports.getStationAutocomplete = async function getStationAutocomplete(req, res)
         for (station of stations) {
             let tripsOfStation = await sequelize.query(
                 `
-                select routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${station.stop_id}') stop_times
+                select routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, routes.route_color, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${station.stop_id}') stop_times
                     inner join trips on stop_times.trip_id=trips.trip_id
                     inner join routes on trips.route_id = routes.route_id
                 `,
@@ -45,6 +45,7 @@ exports.getStationAutocomplete = async function getStationAutocomplete(req, res)
                 formattedTripsOfStation.push({
                     id: trip.trip_id,
                     route_id: trip.route_id,
+                    color: trip.route_color,
                     route_name: {
                         short_name: trip.route_short_name,
                         long_name: trip.route_long_name,
