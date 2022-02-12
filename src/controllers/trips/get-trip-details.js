@@ -40,7 +40,7 @@ exports.getTripDetails = async function (req, res) {
 
     let now = dayjs();
     let todaysDay = now.day();
-    let timeNowString = now.format("HH:mm:ss");
+    let timeNowString = now.format("16:01:44");
 
     try {
         tripDetails = await sequelize.query(
@@ -113,8 +113,6 @@ exports.getTripDetails = async function (req, res) {
 
     tripDetails = tripDetails.splice(0, 1);
     let formattedTripDetails = {};
-
-    console.log(tripDetails);
 
     const headStopId = tripDetails[0].head_stop_id;
 
@@ -215,7 +213,7 @@ exports.getTripDetails = async function (req, res) {
                         lat: previousStation[0].stop_lat,
                         lng: previousStation[0].stop_lon,
                     },
-                    time: previousStation[0].time,
+                    time: await parseTime(previousStation[0].time),
                     approximate_time: previousStation[0].timepoint === "0",
                 },
             ];
@@ -253,6 +251,8 @@ exports.getTripDetails = async function (req, res) {
             },
         );
 
+        console.log(nextStations);
+
         for (station of nextStations) {
             formattedTripDetails.next = [
                 ...formattedTripDetails.next,
@@ -268,7 +268,7 @@ exports.getTripDetails = async function (req, res) {
                         lat: station.stop_lat,
                         lng: station.stop_lon,
                     },
-                    time: station.time,
+                    time: await parseTime(station.time),
                     approximate_time: station.timepoint === "0",
                 },
             ];
@@ -280,3 +280,76 @@ exports.getTripDetails = async function (req, res) {
 
     return res.status(APIStatus.OK.status).send({ data: formattedTripDetails });
 };
+
+async function parseTime(input) {
+    let splittedTime = {
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
+    };
+
+    try {
+        const time = input.split(":");
+        splittedTime = {
+            hours: parseInt(time[0]),
+            minutes: parseInt(time[1]),
+            seconds: parseInt(time[2]),
+        };
+    } catch (error) {
+        return "INVALID TIME: INPUT IS NOT FORMATTED AS HH:mm:ss";
+    }
+
+    let date = dayjs().set("hour", 0).set("minute", 0).set("second", 0);
+
+    if (splittedTime.hours >= 24) {
+        try {
+            const maxTime = await sequelize.query(
+                `select max(time(departure_time)) as max_time from stop_times`,
+                {
+                    type: QueryTypes.SELECT,
+                    maxResult: 1,
+                },
+            );
+        } catch (error) {
+            return `${error}`;
+        }
+
+        if (maxTime.length === 0) {
+            const splittedMaxTime = {
+                hours: 48,
+                minutes: 0,
+                seconds: 0,
+            };
+        } else {
+            try {
+                const mts = maxTime[0].max_time.split(":");
+
+                const splittedMaxTime = {
+                    hours: parseInt(mts[0]),
+                    minutes: parseInt(mts[1]),
+                    seconds: parseInt(mts[2]),
+                };
+            } catch (error) {
+                return "INVALID MAX TIME";
+            }
+        }
+
+        if (
+            splittedTime.hours > splittedMaxTime.hours ||
+            (splittedTime.minutes > splittedMaxTime.minutes &&
+                splittedTime.hours === splittedMaxTime.hours) ||
+            (splittedTime.seconds > splittedMaxTime.seconds &&
+                splittedTime.minutes === splittedMaxTime.minutes &&
+                splittedTime.hours === splittedMaxTime.hours)
+        ) {
+            return "INVALID TIME";
+        }
+        splittedTime.hours = splittedTime.hours - 24;
+    }
+
+    return date
+        .add(splittedTime.hours, "hour")
+        .add(splittedTime.minutes, "minute")
+        .add(splittedTime.seconds, "second")
+        .format();
+}
