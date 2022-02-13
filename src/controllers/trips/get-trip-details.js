@@ -20,22 +20,24 @@ exports.getTripDetails = async function (req, res) {
 
     const tripId = req.params.id;
     const originId = req.query.origin;
+    const forceMode = req.query.force ? req.query.force === "true" : false || false;
 
     let now = dayjs();
     let todaysDay = WEEKDAYS[now.day()];
 
-    if (!(await isTripAvailable(tripId, todaysDay)))
-        return res
-            .status(APIStatus.OK.status)
-            .send({ status: APIStatus.OK, data: `The trip ${tripId} is not available today.` });
+    if (!forceMode)
+        if (!(await isTripAvailable(tripId, todaysDay)))
+            return res
+                .status(APIStatus.OK.status)
+                .send({ status: APIStatus.OK, data: `The trip ${tripId} is not available today.` });
 
-    const options = (req.query.options || "").split(",") || [];
+    const ignore = (req.query.ignore || "").split(",") || [];
 
     let ignoreOrigin = false;
     let ignoreDestination = false;
     let ignoreLine = false;
 
-    for (option of options) {
+    for (option of ignore) {
         if (option === "line") {
             ignoreLine = true;
         } else if (option === "origin") {
@@ -123,6 +125,8 @@ exports.getTripDetails = async function (req, res) {
 
     const headStopId = tripDetails[0].head_stop_id;
     const originDepartureTime = tripDetails[0].origin_departure_time;
+
+    if (forceMode) formattedTripDetails.force = forceMode;
 
     formattedTripDetails.meta = {
         trip_id: tripDetails[0].trip_id,
