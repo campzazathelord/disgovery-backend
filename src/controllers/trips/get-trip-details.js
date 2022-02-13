@@ -4,6 +4,7 @@ const dayjs = require("dayjs");
 const { logger } = require("../../configs/config");
 const APIStatus = require("../../configs/api-errors");
 
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const MAX_DEPARTED_STATIONS = 5;
 
 exports.getTripDetails = async function (req, res) {
@@ -19,6 +20,14 @@ exports.getTripDetails = async function (req, res) {
 
     const tripId = req.params.id;
     const originId = req.query.origin;
+
+    let now = dayjs();
+    let todaysDay = WEEKDAYS[now.day()];
+
+    if (!(await isTripAvailable(tripId, todaysDay)))
+        return res
+            .status(APIStatus.OK.status)
+            .send({ status: APIStatus.OK, data: `The trip ${tripId} is not available today.` });
 
     const options = (req.query.options || "").split(",") || [];
 
@@ -37,10 +46,7 @@ exports.getTripDetails = async function (req, res) {
     }
 
     let tripDetails = [];
-
-    let now = dayjs();
-    let todaysDay = now.day();
-    let timeNowString = now.format("16:01:44");
+    let timeNowString = now.format("HH:mm:ss");
 
     try {
         tripDetails = await sequelize.query(
@@ -107,9 +113,10 @@ exports.getTripDetails = async function (req, res) {
     }
 
     if (tripDetails.length === 0)
-        return res
-            .status(APIStatus.OK.status)
-            .send({ status: APIStatus.OK, data: "That trip is not available right now :(" });
+        return res.status(APIStatus.OK.status).send({
+            status: APIStatus.OK,
+            data: `The trip ${tripId} is not available right now :(`,
+        });
 
     tripDetails = tripDetails.splice(0, 1);
     let formattedTripDetails = {};
@@ -299,7 +306,6 @@ async function parseTime(input) {
     }
 
     let date = dayjs().set("hour", 0).set("minute", 0).set("second", 0);
-
     if (splittedTime.hours >= 24) {
         try {
             const maxTime = await sequelize.query(
@@ -351,4 +357,28 @@ async function parseTime(input) {
         .add(splittedTime.minutes, "minute")
         .add(splittedTime.seconds, "second")
         .format();
+}
+
+async function isTripAvailable(tripId, dayName) {
+    let tripAvailability = [];
+
+    try {
+        tripAvailability = await sequelize.query(
+            `select ${dayName} from calendar natural join (select service_id from trips where trip_id='${tripId}') as trips`,
+            { type: QueryTypes.SELECT, maxResult: 1 },
+        );
+    } catch (error) {
+        logger.error(error);
+        logger.error(
+            `Unable to fetch trip availability right now with an error: ${error}. Neglecting trip availibility.`,
+        );
+        return true;
+    }
+
+    if (tripAvailability.length === 0 || !tripAvailability[0][dayName]) {
+        logger.error("Unable to fetch trip availability right now. Neglecting trip availibility.");
+        return true;
+    }
+
+    return tripAvailability[0][dayName] === "1";
 }
