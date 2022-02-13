@@ -45,7 +45,7 @@ exports.getNearbyStations = async function (req, res) {
 
         let now = dayjs();
         let todaysDay = now.day();
-        let timeNowString = getGTFSFormattedCurrentTime(now);
+        let timeNowString = await getGTFSFormattedCurrentTime(now);
 
         await Object.keys(nearbyStations).map(async (key, iteration) => {
             let nearbyStationLines;
