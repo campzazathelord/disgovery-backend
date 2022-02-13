@@ -28,20 +28,7 @@ exports.getNearbyStations = async function (req, res) {
     try {
         let attributes = Object.keys(await Stop.getAttributes());
 
-        const distance = await sequelize.literal(
-            `6371000 * acos (cos (radians(${lat})) * cos(radians(${STOP_LAT_COL})) * cos(radians(${STOP_LNG_COL}) - radians(${lng})) + sin(radians(${lat})) * sin(radians(${STOP_LAT_COL})))`,
-        );
-
-        attributes.push([distance, "distance"]);
-
-        const nearbyStations = await Stop.findAll({
-            attributes: attributes,
-            order: distance,
-            limit: maxResult,
-            where: sequelize.where(distance, { [Op.lte]: radiusMetres }),
-        });
-
-        let formattedNearbyStations = [];
+        const distance = await getNearby(lat, lng, radiusMetres, maxResult);
 
         let now = dayjs();
         let todaysDay = now.day();
