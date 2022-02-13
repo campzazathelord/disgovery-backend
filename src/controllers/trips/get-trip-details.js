@@ -117,7 +117,7 @@ exports.getTripDetails = async function (req, res) {
     if (tripDetails.length === 0)
         return res.status(APIStatus.OK.status).send({
             status: APIStatus.OK,
-            data: `The trip ${tripId} is not available right now :(`,
+            data: `The trip ${tripId} is not available right now. This might be because the trip you queried doesn't contain the origin you specified, or because the trip is not in service at the moment.`,
         });
 
     tripDetails = tripDetails.splice(0, 1);
