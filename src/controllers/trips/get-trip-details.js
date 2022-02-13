@@ -60,7 +60,7 @@ exports.getTripDetails = async function (req, res) {
                         : ""
                 }
                 frequencies.start_time as headway_starts, sec_to_time(time_to_sec(time(frequencies.end_time)) + frequencies.headway_secs) as headway_ends,
-                head.stop_id as head_stop_id
+                head.stop_id as head_stop_id, current.departure_time as origin_departure_time
                 from (select trip_id, route_id from trips where trips.trip_id='${tripId}') trips
                 natural join stop_times current
                 inner join stop_times head on head.stop_sequence=1 and current.trip_id=head.trip_id and current.stop_id='${originId}'
@@ -115,6 +115,7 @@ exports.getTripDetails = async function (req, res) {
     let formattedTripDetails = {};
 
     const headStopId = tripDetails[0].head_stop_id;
+    const originDepartureTime = tripDetails[0].origin_departure_time;
 
     formattedTripDetails.meta = {
         trip_id: tripDetails[0].trip_id,
@@ -180,7 +181,7 @@ exports.getTripDetails = async function (req, res) {
             previousStation = await sequelize.query(
                 `
                 select current.stop_sequence as stop_sequence, current_stops.stop_id as stop_id, current_stops.stop_code as stop_code, current_stops.stop_name as stop_name_en, translations.translation as stop_name_th, current_stops.stop_lat, current_stops.stop_lon,
-                    sec_to_time((headway_secs * ceiling((time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.departure_time)) - time_to_sec(time(head.departure_time))) - time_to_sec(time(start_time))) / headway_secs)) - ( - (time_to_sec(time(current.departure_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time)))) as time,
+                    sec_to_time((time_to_sec(time(current.departure_time)) - (time_to_sec(time('${originDepartureTime}')))) + time_to_sec(time('${timeNowString}')) + 196) as time,
                     current.timepoint
                     from (select * from stop_times where stop_sequence='${originSequence}' and trip_id='${tripId}') as current
                     natural join stops current_stops
@@ -236,7 +237,7 @@ exports.getTripDetails = async function (req, res) {
         nextStations = await sequelize.query(
             `
             select current.stop_sequence as stop_sequence, current_stops.stop_id as stop_id, current_stops.stop_code as stop_code, current_stops.stop_name as stop_name_en, translations.translation as stop_name_th, current_stops.stop_lat, current_stops.stop_lon,
-                sec_to_time((headway_secs * ceiling((time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.departure_time)) - time_to_sec(time(head.departure_time))) - time_to_sec(time(start_time))) / headway_secs)) - ( - (time_to_sec(time(current.departure_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time)))) as time,
+                sec_to_time((time_to_sec(time(current.departure_time)) - (time_to_sec(time('${originDepartureTime}')))) + time_to_sec(time('${timeNowString}')) + 196) as time,
                 current.timepoint
                 from (select * from stop_times where stop_sequence>='${originSequence}' and trip_id='${tripId}') as current
                 natural join stops current_stops
@@ -250,8 +251,6 @@ exports.getTripDetails = async function (req, res) {
                 type: QueryTypes.SELECT,
             },
         );
-
-        console.log(nextStations);
 
         for (station of nextStations) {
             formattedTripDetails.next = [
