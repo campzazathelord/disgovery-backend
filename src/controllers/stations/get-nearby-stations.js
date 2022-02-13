@@ -4,6 +4,7 @@ const APIStatus = require("../../configs/api-errors");
 const { Op, QueryTypes } = require("sequelize");
 const { logger } = require("../../configs/config");
 const dayjs = require("dayjs");
+const { getGTFSFormattedCurrentTime } = require("../../functions/get-gtfs-formatted-current-time");
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -44,7 +45,7 @@ exports.getNearbyStations = async function (req, res) {
 
         let now = dayjs();
         let todaysDay = now.day();
-        let timeNowString = now.format("HH:mm:ss");
+        let timeNowString = getGTFSFormattedCurrentTime(now);
 
         await Object.keys(nearbyStations).map(async (key, iteration) => {
             let nearbyStationLines;

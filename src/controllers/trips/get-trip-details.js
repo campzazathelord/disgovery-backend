@@ -3,6 +3,7 @@ const { QueryTypes } = require("sequelize");
 const dayjs = require("dayjs");
 const { logger } = require("../../configs/config");
 const APIStatus = require("../../configs/api-errors");
+const { getGTFSFormattedCurrentTime } = require("../../functions/get-gtfs-formatted-current-time");
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const MAX_DEPARTED_STATIONS = 5;
@@ -48,7 +49,7 @@ exports.getTripDetails = async function (req, res) {
     }
 
     let tripDetails = [];
-    let timeNowString = now.format("HH:mm:ss");
+    let timeNowString = await getGTFSFormattedCurrentTime(now);
 
     try {
         tripDetails = await sequelize.query(
