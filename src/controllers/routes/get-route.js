@@ -78,6 +78,22 @@ exports.getRoute = async function (req, res) {
         includeDisabledFares,
     );
 
+    // TODO - Get all the trips and routes that is available now at the origin station
+
+    // Check those trips whether the destination station is available
+    // TRUE - Return
+    // FALSE -  Continue
+
+    // Get all the trips and routess that is available now at the destination station
+    // For each trips, find transfers
+    // If transfers are available, find all the trips and routes that is available at the station of transfer
+    // Remove all duplicate trips or routes that have been checked
+    // For all transfers, check the transferring station's routes and trips that are the same as the origin station are available
+    // Push to checked trips
+    // TRUE - Push to returning array
+    // FALSE - Discard and continue
+    // Do this function again
+
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: result });
 };
 
