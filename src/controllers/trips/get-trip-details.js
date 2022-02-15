@@ -496,8 +496,6 @@ async function findAllNextStations(
         }
 
         formattedNextStations.push(await formatParent(station, parent, maxTime));
-
-        console.log(formattedNextStations);
     }
 
     return formattedNextStations;
