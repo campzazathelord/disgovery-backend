@@ -492,10 +492,12 @@ async function findAllNextStations(
         let parent;
 
         if (station.parent_station) {
-            parent = await findParent(station.stop_id);
+            parent = await findParent(station.parent_station);
         }
 
         formattedNextStations.push(await formatParent(station, parent, maxTime));
+
+        console.log(formattedNextStations);
     }
 
     return formattedNextStations;
