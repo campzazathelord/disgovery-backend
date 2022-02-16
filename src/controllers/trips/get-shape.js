@@ -249,6 +249,8 @@ function doCoordinatesInterpolation(
         maxRadius,
     );
 
+    console.log(distancesFromCoordinates);
+
     let interpolated;
     let between = [];
 
@@ -266,7 +268,7 @@ function doCoordinatesInterpolation(
             interpolated = interpolate(
                 distancesFromCoordinates[0],
                 distancesFromCoordinates[1],
-                from,
+                coordinates,
                 interpolationIteration,
             );
             between = [distancesFromCoordinates[0].index, distancesFromCoordinates[1].index];
@@ -281,33 +283,33 @@ function doCoordinatesInterpolation(
                 distancesFromCoordinates[minDistanceIndex - 1].index,
                 distancesFromCoordinates[minDistanceIndex].index,
             ];
-        }
-
-        if (
-            distancesFromCoordinates[minDistanceIndex - 1].distance <
-            distancesFromCoordinates[minDistanceIndex + 1].distance
-        ) {
-            interpolated = interpolate(
-                distancesFromCoordinates[minDistanceIndex - 1],
-                distancesFromCoordinates[minDistanceIndex],
-                coordinates,
-                interpolationIteration,
-            );
-            between = [
-                distancesFromCoordinates[minDistanceIndex - 1].index,
-                distancesFromCoordinates[minDistanceIndex].index,
-            ];
         } else {
-            interpolated = interpolate(
-                distancesFromCoordinates[minDistanceIndex + 1],
-                distancesFromCoordinates[minDistanceIndex],
-                coordinates,
-                interpolationIteration,
-            );
-            between = [
-                distancesFromCoordinates[minDistanceIndex].index,
-                distancesFromCoordinates[minDistanceIndex + 1].index,
-            ];
+            if (
+                distancesFromCoordinates[minDistanceIndex - 1].distance <
+                distancesFromCoordinates[minDistanceIndex + 1].distance
+            ) {
+                interpolated = interpolate(
+                    distancesFromCoordinates[minDistanceIndex - 1],
+                    distancesFromCoordinates[minDistanceIndex],
+                    coordinates,
+                    interpolationIteration,
+                );
+                between = [
+                    distancesFromCoordinates[minDistanceIndex - 1].index,
+                    distancesFromCoordinates[minDistanceIndex].index,
+                ];
+            } else {
+                interpolated = interpolate(
+                    distancesFromCoordinates[minDistanceIndex + 1],
+                    distancesFromCoordinates[minDistanceIndex],
+                    coordinates,
+                    interpolationIteration,
+                );
+                between = [
+                    distancesFromCoordinates[minDistanceIndex].index,
+                    distancesFromCoordinates[minDistanceIndex + 1].index,
+                ];
+            }
         }
     }
 
