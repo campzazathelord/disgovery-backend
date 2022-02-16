@@ -24,7 +24,7 @@ exports.getTripDetails = async function (req, res) {
     const originId = req.query.origin;
     const forceMode = req.query.force ? req.query.force === "true" : false || false;
 
-    let now = dayjs();
+    let now = dayjs().subtract(6, "hour");
     let todaysDay = WEEKDAYS[now.day()];
 
     if (!forceMode)
