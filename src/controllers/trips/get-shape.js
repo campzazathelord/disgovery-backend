@@ -249,8 +249,6 @@ function doCoordinatesInterpolation(
         maxRadius,
     );
 
-    console.log(distancesFromCoordinates);
-
     let interpolated;
     let between = [];
 
