@@ -96,8 +96,8 @@ exports.getTripDetails = async function (req, res) {
         trip_id: tripDetails[0].trip_id,
         arriving_in: tripDetails[0].arriving_in,
         headway: {
-            from: tripDetails[0].headway_starts,
-            to: tripDetails[0].headway_ends,
+            from: await parseTime(tripDetails[0].headway_starts, maxTime),
+            to: await parseTime(tripDetails[0].headway_ends, maxTime),
             headway_secs: tripDetails[0].headway_secs,
         },
     };
