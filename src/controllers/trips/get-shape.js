@@ -13,8 +13,6 @@ const INTERPOLATION_ITERATION = 10;
 exports.getShape = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
 
-    const start_time = performance.now();
-
     if (!req.params.route_id)
         return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
 
@@ -57,7 +55,7 @@ exports.getShape = async function (req, res) {
     const end_time = performance.now();
     return res.status(APIStatus.OK.status).send({
         status: APIStatus.OK,
-        data: { from: from, to: to, shape: encodedShape, runtime: end_time - start_time },
+        data: { encodedShape },
     });
 };
 
