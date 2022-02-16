@@ -55,7 +55,7 @@ exports.getShape = async function (req, res) {
     const end_time = performance.now();
     return res.status(APIStatus.OK.status).send({
         status: APIStatus.OK,
-        data: { encodedShape },
+        data: { shape_encoded: encodedShape },
     });
 };
 
