@@ -3,7 +3,8 @@ const express = require("express");
 const sequelize = require("../src/db/database");
 const { checkStructEnv, logger } = require("./configs/config");
 const config = require("./configs/config");
-const btsRouter = require("./routers/routers");
+const { getAllStops } = require("./functions/get-all-stops");
+const router = require("./routers/routers");
 
 checkStructEnv();
 
@@ -11,10 +12,15 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
-app.use(btsRouter);
+app.use(router);
+
 sequelize
     .sync()
-    .then(() => {
+    .then(async () => {
+        await (async () => {
+            app.set("stops", await getAllStops());
+        })();
+
         app.listen(process.env.PORT || 3000, () => {
             logger.info("Server is up on port " + process.env.PORT || 3000);
         });
