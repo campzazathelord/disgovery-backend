@@ -90,13 +90,268 @@ exports.getAdjacency = async function () {
     // fs.writeFileSync('adjacentMatrix.json',JSON.stringify(adjacencyListMatrix));
 
     let rawdata = fs.readFileSync("adjacentMatrix.json");
+
+    //INSERT HERE
     let data = JSON.parse(rawdata);
-    class Node {
-        constructor(val, priority) {
-            this.val = val;
-            this.priority = priority;
+    class WeightedGraph {
+        constructor() {
+            this.adjacencyList = data;
+        }
+        addVertex(vertex) {
+            if (!this.adjacencyList[vertex]) this.adjacencyList[vertex] = [];
+        }
+        addEdge(vertex1, vertex2, weight) {
+            this.adjacencyList[vertex1].push({ node: vertex2, weight });
+            this.adjacencyList[vertex2].push({ node: vertex1, weight });
+        }
+        DijkstraFastest(start, finish) {
+            const nodes = new PriorityQueue();
+            const distances = {};
+            const previous = {};
+            let path = [];
+            let smallest;
+            for (let vertex in this.adjacencyList) {
+                if (vertex === start) {
+                    distances[vertex] = 0;
+                    nodes.enqueue(vertex, 0);
+                } else {
+                    distances[vertex] = Infinity;
+                    nodes.enqueue(vertex, Infinity);
+                }
+                previous[vertex] = null;
+            }
+            while (nodes.values.length) {
+                smallest = nodes.dequeue().val;
+                if (smallest === finish) {
+                    while (previous[smallest]) {
+                        path.push(smallest);
+                        smallest = previous[smallest];
+                    }
+                    break;
+                }
+                if (smallest || distances[smallest] !== Infinity) {
+                    for (let neighbor in this.adjacencyList[smallest]) {
+                        let nextNode = this.adjacencyList[smallest][neighbor];
+                        let candidate = distances[smallest] + nextNode.weight;
+                        let nextNeighbor = nextNode.node;
+                        if (candidate < distances[nextNeighbor]) {
+                            distances[nextNeighbor] = candidate;
+                            previous[nextNeighbor] = smallest;
+                            nodes.enqueue(nextNeighbor, candidate);
+                        }
+                    }
+                }
+            }
+            let finalArr = path.concat(smallest).reverse();
+            return [...finalArr, distances[finish]];
+        }
+        DijkstraAlternatives1(start, finish) {
+            const nodes = new PriorityQueue();
+            const distances = {};
+            const previous = {};
+            let path = [];
+            let smallest;
+            for (let vertex in this.adjacencyList) {
+                if (vertex === start) {
+                    distances[vertex] = 0;
+                    nodes.enqueue(vertex, 0);
+                } else {
+                    distances[vertex] = Infinity;
+                    nodes.enqueue(vertex, Infinity);
+                }
+                previous[vertex] = null;
+            }
+            while (nodes.values.length) {
+                smallest = nodes.dequeue().val;
+                if (smallest === finish) {
+                    while (previous[smallest]) {
+                        path.push(smallest);
+                        smallest = previous[smallest];
+                    }
+                    break;
+                }
+                if (smallest || distances[smallest] !== Infinity) {
+                    for (let neighbor in this.adjacencyList[smallest]) {
+                        let nextNode = this.adjacencyList[smallest][neighbor];
+                        let candidate = distances[smallest] + nextNode.weight;
+                        let nextNeighbor = nextNode.node;
+                        if (candidate + 300 < distances[nextNeighbor]) {
+                            distances[nextNeighbor] = candidate;
+                            previous[nextNeighbor] = smallest;
+                            nodes.enqueue(nextNeighbor, candidate);
+                        }
+                    }
+                }
+            }
+            let finalArr = path.concat(smallest).reverse();
+            return [...finalArr, distances[finish]];
+        }
+        DijkstraAlternatives2(start, finish) {
+            const nodes = new PriorityQueue();
+            const distances = {};
+            const previous = {};
+            let path = [];
+            let smallest;
+            for (let vertex in this.adjacencyList) {
+                if (vertex === start) {
+                    distances[vertex] = 0;
+                    nodes.enqueue(vertex, 0);
+                } else {
+                    distances[vertex] = Infinity;
+                    nodes.enqueue(vertex, Infinity);
+                }
+                previous[vertex] = null;
+            }
+            while (nodes.values.length) {
+                smallest = nodes.dequeue().val;
+                if (smallest === finish) {
+                    while (previous[smallest]) {
+                        path.push(smallest);
+                        smallest = previous[smallest];
+                    }
+                    break;
+                }
+                if (smallest || distances[smallest] !== Infinity) {
+                    for (let neighbor in this.adjacencyList[smallest]) {
+                        let nextNode = this.adjacencyList[smallest][neighbor];
+                        let candidate = distances[smallest] + nextNode.weight;
+                        let nextNeighbor = nextNode.node;
+                        if (candidate + 600 < distances[nextNeighbor]) {
+                            distances[nextNeighbor] = candidate;
+                            previous[nextNeighbor] = smallest;
+                            nodes.enqueue(nextNeighbor, candidate);
+                        }
+                    }
+                }
+            }
+            let finalArr = path.concat(smallest).reverse();
+            return [...finalArr, distances[finish]];
+        }
+        DijkstraAlternatives3(start, finish) {
+            const nodes = new PriorityQueue();
+            const distances = {};
+            const previous = {};
+            let path = [];
+            let smallest;
+            for (let vertex in this.adjacencyList) {
+                if (vertex === start) {
+                    distances[vertex] = 0;
+                    nodes.enqueue(vertex, 0);
+                } else {
+                    distances[vertex] = Infinity;
+                    nodes.enqueue(vertex, Infinity);
+                }
+                previous[vertex] = null;
+            }
+            while (nodes.values.length) {
+                smallest = nodes.dequeue().val;
+                if (smallest === finish) {
+                    while (previous[smallest]) {
+                        path.push(smallest);
+                        smallest = previous[smallest];
+                    }
+                    break;
+                }
+                if (smallest || distances[smallest] !== Infinity) {
+                    for (let neighbor in this.adjacencyList[smallest]) {
+                        let nextNode = this.adjacencyList[smallest][neighbor];
+                        let candidate = distances[smallest] + nextNode.weight;
+                        let nextNeighbor = nextNode.node;
+                        if (candidate + 900 < distances[nextNeighbor]) {
+                            distances[nextNeighbor] = candidate;
+                            previous[nextNeighbor] = smallest;
+                            nodes.enqueue(nextNeighbor, candidate);
+                        }
+                    }
+                }
+            }
+            let finalArr = path.concat(smallest).reverse();
+            return [...finalArr, distances[finish]];
+        }
+        DijkstraAlternatives4(start, finish) {
+            const nodes = new PriorityQueue();
+            const distances = {};
+            const previous = {};
+            let path = [];
+            let smallest;
+            for (let vertex in this.adjacencyList) {
+                if (vertex === start) {
+                    distances[vertex] = 0;
+                    nodes.enqueue(vertex, 0);
+                } else {
+                    distances[vertex] = Infinity;
+                    nodes.enqueue(vertex, Infinity);
+                }
+                previous[vertex] = null;
+            }
+            while (nodes.values.length) {
+                smallest = nodes.dequeue().val;
+                if (smallest === finish) {
+                    while (previous[smallest]) {
+                        path.push(smallest);
+                        smallest = previous[smallest];
+                    }
+                    break;
+                }
+                if (smallest || distances[smallest] !== Infinity) {
+                    for (let neighbor in this.adjacencyList[smallest]) {
+                        let nextNode = this.adjacencyList[smallest][neighbor];
+                        let candidate = distances[smallest] + nextNode.weight;
+                        let nextNeighbor = nextNode.node;
+                        if (candidate + 1200 < distances[nextNeighbor]) {
+                            distances[nextNeighbor] = candidate;
+                            previous[nextNeighbor] = smallest;
+                            nodes.enqueue(nextNeighbor, candidate);
+                        }
+                    }
+                }
+            }
+            let finalArr = path.concat(smallest).reverse();
+            return [...finalArr, distances[finish]];
+        }
+        DijkstraAlternatives5(start, finish) {
+            const nodes = new PriorityQueue();
+            const distances = {};
+            const previous = {};
+            let path = [];
+            let smallest;
+            for (let vertex in this.adjacencyList) {
+                if (vertex === start) {
+                    distances[vertex] = 0;
+                    nodes.enqueue(vertex, 0);
+                } else {
+                    distances[vertex] = Infinity;
+                    nodes.enqueue(vertex, Infinity);
+                }
+                previous[vertex] = null;
+            }
+            while (nodes.values.length) {
+                smallest = nodes.dequeue().val;
+                if (smallest === finish) {
+                    while (previous[smallest]) {
+                        path.push(smallest);
+                        smallest = previous[smallest];
+                    }
+                    break;
+                }
+                if (smallest || distances[smallest] !== Infinity) {
+                    for (let neighbor in this.adjacencyList[smallest]) {
+                        let nextNode = this.adjacencyList[smallest][neighbor];
+                        let candidate = distances[smallest] + nextNode.weight;
+                        let nextNeighbor = nextNode.node;
+                        if (candidate + 1500 < distances[nextNeighbor]) {
+                            distances[nextNeighbor] = candidate;
+                            previous[nextNeighbor] = smallest;
+                            nodes.enqueue(nextNeighbor, candidate);
+                        }
+                    }
+                }
+            }
+            let finalArr = path.concat(smallest).reverse();
+            return [...finalArr, distances[finish]];
         }
     }
+
     class PriorityQueue {
         constructor() {
             this.values = [];
@@ -159,80 +414,24 @@ exports.getAdjacency = async function () {
             }
         }
     }
-    class WeightedGraph {
-        constructor() {
-            this.adjacencyList = data;
-        }
-        addVertex(vertex) {
-            if (!this.adjacencyList[vertex]) this.adjacencyList[vertex] = [];
-        }
-        addEdge(vertex1, vertex2, weight) {
-            this.adjacencyList[vertex1].push({ node: vertex2, weight });
-            this.adjacencyList[vertex2].push({ node: vertex1, weight });
-        }
-        Dijkstra(start, finish) {
-            const nodes = new PriorityQueue();
-            const distances = {};
-            const previous = {};
-            let directions = [];
-            let smallest;
-            for (let vertex of Object.keys(this.adjacencyList)) {
-                if (vertex === start) {
-                    distances[vertex] = 0;
-                    nodes.enqueue(vertex, 0);
-                } else {
-                    distances[vertex] = Infinity;
-                    nodes.enqueue(vertex, Infinity);
-                }
-                previous[vertex] = null;
-            }
-            while (nodes.values.length !== 0) {
-                smallest = nodes.dequeue().val;
-                if (smallest == finish) {
-                    directions.push({ ...previous, time: distances[finish] });
-                    break;
-                }
-                if (smallest || distances[smallest] != Infinity) {
-                    for (let nearNode of this.adjacencyList[smallest]) {
-                        let nextNode = nearNode.node;
-                        let nextNodeWeight = nearNode.weight;
-                        if (nextNodeWeight + distances[smallest] < distances[nextNode]) {
-                            distances[nextNode] = nextNodeWeight + distances[smallest];
-                            previous[nextNode] = smallest;
-                            let tmpPrevious = { ...previous };
-                            if (tmpPrevious[finish]) {
-                                directions.push({ ...tmpPrevious, time: distances[finish] });
-                            }
-                            nodes.enqueue(nextNode, nextNodeWeight + distances[smallest]);
-                        }
-                    }
-                }
-            }
-            return { directions, finish };
-        }
-        dijkstraToArray(start, end) {
-            let pathArrFinal = [];
-            let { directions } = this.Dijkstra(start, end);
-            for (let items of directions) {
-                let tempend = end;
-                let pathArr = new Set();
-                while (items[tempend]) {
-                    pathArr.add(items["time"]);
-                    pathArr.add(tempend);
-                    tempend = items[tempend];
-                    pathArr.add(tempend);
-                }
-                pathArrFinal.push([...pathArr].reverse());
-            }
-            const uniquePairs = (pairs) =>
-                [...new Set(pairs.map((pair) => JSON.stringify(pair)))].map((pair) =>
-                    JSON.parse(pair),
-                );
-
-            return uniquePairs(pathArrFinal);
+    class Node {
+        constructor(val, priority) {
+            this.val = val;
+            this.priority = priority;
         }
     }
     var graph = new WeightedGraph();
-
-    console.log(graph.dijkstraToArray("BTS_N8", "BTS_E4"));
+    const uniquePairs = (pairs) =>
+        [...new Set(pairs.map((pair) => JSON.stringify(pair)))].map((pair) => JSON.parse(pair));
+    const CalculateRoute = (start, finish) => {
+        return uniquePairs([
+            graph.DijkstraAlternatives1(start, finish),
+            graph.DijkstraAlternatives2(start, finish),
+            graph.DijkstraAlternatives3(start, finish),
+            graph.DijkstraAlternatives4(start, finish),
+            graph.DijkstraAlternatives5(start, finish),
+            graph.DijkstraFastest(start, finish),
+        ]);
+    };
+    console.log(CalculateRoute("BTS_N8", "BTS_E4"));
 };
