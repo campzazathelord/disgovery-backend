@@ -4,6 +4,7 @@ const StationDetails = require("../../functions/StationDetails");
 const APIStatus = require("../../configs/api-errors");
 const { logger } = require("../../configs/config");
 const sequelize = require("../../db/database");
+const Fuse = require("fuse.js");
 const { Op, QueryTypes } = require("sequelize");
 
 exports.getStationAutocomplete = async function getStationAutocomplete(req, res) {
@@ -17,20 +18,12 @@ exports.getStationAutocomplete = async function getStationAutocomplete(req, res)
     let stationDetailsResult = [];
 
     try {
-        let stations = await sequelize.query(
-            `
-            select stops.stop_id, stops.stop_name as stop_name_en, translations.translation as stop_name_th, stops.stop_lat, stops.stop_lon from stops
-                inner join translations on soundex(stops.stop_name)=soundex('${query}') and translations.record_id=stops.stop_id and translations.table_name='stops' and translations.field_name='stop_name'
-        `,
-            {
-                type: QueryTypes.SELECT,
-            },
-        );
+        const stations = search(query, req, max_result);
 
         for (station of stations) {
             let tripsOfStation = await sequelize.query(
                 `
-                select routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, routes.route_color, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${station.stop_id}') stop_times
+                select routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, routes.route_color, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${station.item.stop_id}') stop_times
                     inner join trips on stop_times.trip_id=trips.trip_id
                     inner join routes on trips.route_id = routes.route_id
                 `,
@@ -58,29 +51,31 @@ exports.getStationAutocomplete = async function getStationAutocomplete(req, res)
             stationDetailsResult.push({
                 station_id: station.stop_id,
                 name: {
-                    en: station.stop_name_en.trim(),
-                    th: station.stop_name_th.trim(),
+                    en: station.item.stop_name_en.trim(),
+                    th: station.item.stop_name_th.trim(),
                 },
                 location: {
-                    lat: station.stop_lat,
-                    lng: station.stop_lon,
+                    lat: station.item.stop_lat,
+                    lng: station.item.stop_lon,
                 },
                 trips: formattedTripsOfStation,
             });
         }
 
-        // const stations = await Stop.findAll({
-        //     attributes: ["stop_name"],
-        // });
-
-        // let stationArr = stations.map((x) => {
-        //     return x["stop_name"];
-        // });
-
-        // const result = Fuzzy(stationArr, query, max_result);
-        // const stationDetailsResult = await StationDetails(result);
         return res.status(APIStatus.OK.status).send({ data: stationDetailsResult });
     } catch (error) {
         return res.send(error).status(APIStatus.INTERNAL.SERVER_ERROR.status);
     }
 };
+
+function search(query, req, max_result) {
+    if (!query) return [];
+
+    const options = {
+        includeScore: true,
+        keys: ["stop_name_en", "stop_name_th"],
+    };
+
+    const fuse = new Fuse(req.app.get("stops"), options);
+    return fuse.search(query, { limit: max_result });
+}

@@ -104,6 +104,7 @@ exports.getTripDetails = async function (req, res) {
 
     if (!ignoreLine)
         formattedTripDetails.meta.line = {
+            id: tripDetails[0].route_id,
             name: {
                 short_name: tripDetails[0].route_short_name,
                 long_name: tripDetails[0].route_long_name,
@@ -364,7 +365,7 @@ async function findTripDetails(
     return await sequelize.query(
         `select distinct trips.trip_id, ${
             !ignoreLine
-                ? `routes.route_long_name, routes.route_short_name, routes.route_color,`
+                ? `routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_color,`
                 : ""
         } (headway_secs * ceiling((time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in,
             frequencies.headway_secs, ${

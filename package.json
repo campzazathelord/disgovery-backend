@@ -11,6 +11,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "@googlemaps/polyline-codec": "^1.0.19",
         "axios": "^0.25.0",
         "dayjs": "^1.10.7",
         "dotenv": "^15.0.0",
