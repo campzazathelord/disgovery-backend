@@ -4,8 +4,17 @@ const { logger } = require("../configs/config");
 const maxReturnArr = 6;
 
 class WeightedGraph {
-    constructor() {
+    constructor(data) {
         this.adjacencyList = data;
+        this.transferArr = [];
+
+        for (let station of Object.keys(data)) {
+            if (data[station].length > 2) {
+                this.transferArr.push(station);
+            }
+        }
+
+        console.log(this.transferArr);
     }
 
     addVertex(vertex) {
@@ -60,9 +69,11 @@ class WeightedGraph {
             }
             let finalArr = path.concat(smallest).reverse();
             let tmpFinalArr = [...finalArr];
+
             tmpFinalArr.shift();
             tmpFinalArr.pop();
-            for (let interChange of transferArr) {
+
+            for (let interChange of this.transferArr) {
                 if (tmpFinalArr.includes(interChange)) {
                     delete this.adjacencyList[interChange];
                     break;
@@ -156,22 +167,15 @@ exports.generateRoute = (origin, destination) => {
     let rawdata;
 
     try {
-        rawdata = fs.readFileSync("./src/db/adjacent-matrix.json");
+        rawdata = fs.readFileSync("./src/db/adjacency-matrix.json");
     } catch (error) {
         logger.error("Error reading adjacency-matrix.json: No such file.");
         rawdata = "{}";
     }
 
     let data = JSON.parse(rawdata);
-    let transferArr = [];
 
-    for (let station of Object.keys(data)) {
-        if (data[station].length > 2) {
-            transferArr.push(station);
-        }
-    }
-
-    const graph = new WeightedGraph();
+    const graph = new WeightedGraph(data);
 
     return graph.DijkstraFastest(origin, destination);
 };

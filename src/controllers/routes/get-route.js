@@ -4,7 +4,7 @@ const Stop = require("../../models/Stop");
 const sequelize = require("../../db/database");
 const { Op } = require("sequelize");
 const { getNearby } = require("../../functions/get-nearby");
-const generateRoute = require("../../functions/algorithms");
+const { generateRoute } = require("../../functions/algorithms");
 const dayjs = require("dayjs");
 const { QueryTypes } = require("sequelize");
 
@@ -31,6 +31,7 @@ exports.getRoute = async function (req, res) {
         origin = req.body.origin.split(":");
         destination = req.body.destination.split(":");
         time = dayjs(req.body.time);
+
         if (origin.length <= 1 || destination.length <= 1)
             return res.status(APIStatus.BAD_REQUEST.status).send({
                 status: APIStatus.BAD_REQUEST.status,
@@ -56,7 +57,7 @@ exports.getRoute = async function (req, res) {
         });
 
     let fare_options = req.body.fare_options || "";
-    
+
     let includeAdultFares = true,
         includeElderFares = false,
         includeChildFares = false,
@@ -142,7 +143,7 @@ exports.getRoute = async function (req, res) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
 
                 totalPrice += await calculatePrice(firstStationOfRoute, lastStationOfRoute);
-                
+
                 firstStationOfRoute = realRoutes[i][j].stop_id;
                 lastStationOfRoute = realRoutes[i][j].stop_id;
                 currentRoute = realRoutes[i][j].route_id;
