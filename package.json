@@ -5,7 +5,7 @@
     "main": "index.js",
     "scripts": {
         "start": "node src/index.js",
-        "dev": "nodemon src/index.js --ignore src/db/adjacency"
+        "dev": "nodemon src/index.js --ignore src/db/adjacency-matrix.json"
     },
     "keywords": [],
     "author": "",

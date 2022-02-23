@@ -84,5 +84,5 @@ exports.getAdjacency = async function () {
         ];
     }
 
-    fs.writeFileSync("./src/db/adjacent-matrix.json", JSON.stringify(adjacencyListMatrix));
+    fs.writeFileSync("./src/db/adjacency-matrix.json", JSON.stringify(adjacencyListMatrix));
 };
