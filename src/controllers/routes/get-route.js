@@ -7,9 +7,8 @@ const { getNearby } = require("../../functions/get-nearby");
 const { generateRoute } = require("../../functions/algorithms");
 const dayjs = require("dayjs");
 const { QueryTypes } = require("sequelize");
+const { jointFareRules } = require("../../db/joint-fare-rules");
 
-const STOP_LAT_COL = "stop_lat";
-const STOP_LNG_COL = "stop_lon";
 const MAX_RADIUS = 30000;
 const RADIUS_STEP = 5000;
 const MAX_NEARBY_STATIONS = 3;
@@ -75,39 +74,25 @@ exports.getRoute = async function (req, res) {
         includeDisabledFares = fare_options.includes("disabled");
     }
 
-    // TODO - Get all the trips and routes that is available now at the origin station
-
-    // Check those trips whether the destination station is available
-    // TRUE - Return
-    // FALSE -  Continue
-
-    // Get all the trips and routess that is available now at the destination station
-    // For each trips, find transfers
-    // If transfers are available, find all the trips and routes that is available at the station of transfer
-    // Remove all duplicate trips or routes that have been checked
-    // For all transfers, check the transferring station's routes and trips that are the same as the origin station are available
-    // Push to checked trips
-    // TRUE - Push to returning array
-    // FALSE - Discard and continue
-    // Do this function again
-
     const allRoutes = generateRoute(or_station, des_station);
-    console.log(allRoutes);
 
     const routeOfStation = await sequelize.query(
         `
-        SELECT stop_id, route_id
-        FROM ((SELECT trip_id,stop_id
-               FROM stop_times
-               GROUP BY stop_id) AS trip_ids
-        INNER JOIN trips
-        ON trips.trip_id = trip_ids.trip_id);
+        SELECT zone_id, stop_ids.stop_id, route_id FROM (
+                SELECT stop_id, route_id
+                FROM ((SELECT trip_id, stop_id
+                    FROM stop_times
+                    GROUP BY stop_id) AS trip_ids
+                INNER JOIN trips
+                ON trips.trip_id = trip_ids.trip_id)
+        ) AS stop_ids
+        INNER JOIN stops ON stops.stop_id=stop_ids.stop_id;
         `,
         {
             type: QueryTypes.SELECT,
         },
     );
-    //console.log(routeOfStation);
+
     let tmp = [];
     let realRoutes = [];
     for (let avaliableRoutes of allRoutes) {
@@ -115,12 +100,10 @@ exports.getRoute = async function (req, res) {
         avaliableRoutes.pop();
 
         const haha = avaliableRoutes.map((station) => {
-            // console.log(station)
             let findRoute = routeOfStation.filter((x) => {
-                return x.stop_id == station;
+                return x.zone_id == station;
             });
 
-            // console.log(findRoute)
             tmp.push(...findRoute);
         });
 
@@ -128,48 +111,56 @@ exports.getRoute = async function (req, res) {
     }
     console.log("kuyy");
     console.log(realRoutes);
-    let totalPrice;
+    let totalFares;
 
     for (let i = 0; i < realRoutes.length; i++) {
         console.log(realRoutes[i]);
 
         let firstStationOfRoute = realRoutes[i][0].stop_id;
         let lastStationOfRoute = realRoutes[i][0].stop_id;
-        let currentRoute = realRoutes[i][0].route_id;
-        totalPrice = 0;
+        let currentRouteId = realRoutes[i][0].route_id;
+        totalFares = 0;
+
+        let previousFare = 0;
 
         for (let j = 0; j < realRoutes[i].length; j++) {
+            // if (j === realRoutes[i].length - 1) {
+            //     lastStationOfRoute = realRoutes[i][j].stop_id;
+            //     totalFares += await calculateFare(firstStationOfRoute, lastStationOfRoute);
+            //     previousFare = 0;
+            // }
+
+            // let fare = await calculateFare(firstStationOfRoute, lastStationOfRoute);
+
+            // if (!fare || j === realRoutes[i].length - 1) {
+            //     firstStationOfRoute = lastStationOfRoute;
+            //     totalFares += previousFare;
+            //     previousFare = 0;
+            // } else {
+            //     lastStationOfRoute = realRoutes[i][j].stop_id;
+            //     previousFare = fare || 0;
+            // }
+
             if (j === realRoutes[i].length - 1) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
-
-                totalPrice += await calculatePrice(firstStationOfRoute, lastStationOfRoute);
-
-                firstStationOfRoute = realRoutes[i][j].stop_id;
-                lastStationOfRoute = realRoutes[i][j].stop_id;
-                currentRoute = realRoutes[i][j].route_id;
-                break;
+                totalFares += await calculateFare(firstStationOfRoute, lastStationOfRoute);
             }
 
             if (
-                realRoutes[i][j].route_id === currentRoute ||
-                (currentRoute === "BTS_SUKHUMVIT" && realRoutes[i][j].route_id === "BTS_SILOM") ||
-                (currentRoute === "BTS_SILOM" && realRoutes[i][j].route_id === "BTS_SUKHUMVIT") ||
-                (currentRoute === "MRT_BLUE" && realRoutes[i][j].route_id === "MRT_PURPLE") ||
-                (currentRoute === "MRT_PURPLE" && realRoutes[i][j].route_id === "MRT_BLUE") ||
-                (currentRoute === "SRT_LIGHT_RED" &&
-                    realRoutes[i][j].route_id === "SRT_DARK_RED") ||
-                (currentRoute === "SRT_DARK_RED" && realRoutes[i][j].route_id === "SRT_LIGHT_RED")
+                realRoutes[i][j].route_id === currentRouteId ||
+                jointFareRules[realRoutes[i][j].route_id].includes(currentRouteId)
             ) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
-                continue;
             } else {
-                totalPrice += await calculatePrice(firstStationOfRoute, lastStationOfRoute);
+                totalFares += await calculateFare(firstStationOfRoute, lastStationOfRoute);
+
                 firstStationOfRoute = realRoutes[i][j].stop_id;
                 lastStationOfRoute = realRoutes[i][j].stop_id;
-                currentRoute = realRoutes[i][j].route_id;
+                currentRouteId = realRoutes[i][j].route_id;
             }
         }
-        console.log(totalPrice);
+
+        console.log(totalFares);
     }
 
     let result = 1;
@@ -177,9 +168,7 @@ exports.getRoute = async function (req, res) {
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: result });
 };
 
-async function calculatePrice(origin, destination) {
-    console.log(origin, destination);
-
+async function calculateFare(origin, destination) {
     const price = await sequelize.query(
         `
         SELECT price
@@ -196,9 +185,8 @@ async function calculatePrice(origin, destination) {
         },
     );
 
-    console.log(price);
-
-    return parseFloat(price[0].price) || 0;
+    if (price[0] && price[0].price) return parseFloat(price[0].price);
+    else return 0;
 }
 
 async function getStationId(stationArray) {
