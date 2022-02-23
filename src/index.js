@@ -4,7 +4,7 @@ const sequelize = require("../src/db/database");
 const { checkStructEnv, logger } = require("./configs/config");
 const config = require("./configs/config");
 const { getAllStops } = require("./functions/get-all-stops");
-const { getAdjacency } = require("./functions/get-adjacency")
+const { getAdjacency } = require("./functions/get-adjacency");
 const router = require("./routers/routers");
 
 checkStructEnv();
@@ -23,7 +23,7 @@ sequelize
         })();
 
         await (async () => {
-            await getAdjacency()
+            await getAdjacency();
         })();
 
         app.listen(process.env.PORT || 3000, () => {

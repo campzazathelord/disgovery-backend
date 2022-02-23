@@ -13,8 +13,6 @@ class WeightedGraph {
                 this.transferArr.push(station);
             }
         }
-
-        console.log(this.transferArr);
     }
 
     addVertex(vertex) {
@@ -67,6 +65,7 @@ class WeightedGraph {
                     }
                 }
             }
+
             let finalArr = path.concat(smallest).reverse();
             let tmpFinalArr = [...finalArr];
 
