@@ -1,6 +1,16 @@
 const fs = require("fs");
+const { logger } = require("../configs/config");
+
 let maxReturnArr = 6;
-let rawdata = fs.readFileSync("adjacentMatrix.json");
+let rawdata;
+
+try {
+    rawdata = fs.readFileSync("./src/db/adjacent-matrix.json");
+} catch (error) {
+    logger.error("Error reading adjacency-matrix.json: No such file.");
+    rawdata = "{}";
+}
+
 let data = JSON.parse(rawdata);
 let transferArr = [];
 
@@ -14,7 +24,7 @@ class WeightedGraph {
     constructor() {
         this.adjacencyList = data;
     }
-    
+
     addVertex(vertex) {
         if (!this.adjacencyList[vertex]) this.adjacencyList[vertex] = [];
     }
