@@ -56,6 +56,7 @@ exports.getRoute = async function (req, res) {
         });
 
     let fare_options = req.body.fare_options || "";
+    
     let includeAdultFares = true,
         includeElderFares = false,
         includeChildFares = false,

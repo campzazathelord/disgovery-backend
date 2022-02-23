@@ -159,12 +159,8 @@ class Node {
     }
 }
 
-var graph = new WeightedGraph();
-// let t1 = performance.now()
-// console.log(graph.DijkstraFastest("BTS_N3", "BTS_E5"))
-// graph.DijkstraFastest("BTS_N3", "BTS_E5")
-// let t2 = performance.now()
-// console.log(t2-t1)
+const graph = new WeightedGraph();
+
 const generateRoute = (origin, destination) => {
     return graph.DijkstraFastest(origin, destination);
 };
