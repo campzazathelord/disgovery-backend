@@ -72,16 +72,17 @@ exports.getAdjacency = async function () {
         }
     }
 
-    for (let transfer of allTransfers){
+    for (let transfer of allTransfers) {
         if (!Object.keys(adjacencyListMatrix).includes(transfer.from_stop_id)) continue;
 
         adjacencyListMatrix[transfer.from_stop_id] = [
             ...adjacencyListMatrix[transfer.from_stop_id],
             {
                 node: transfer.to_stop_id,
-                weight: transfer.min_transfer_time
+                weight: transfer.min_transfer_time,
             },
-        ]
+        ];
     }
-    fs.writeFileSync('./src/db/adjacent-matrix.json',JSON.stringify(adjacencyListMatrix));
-}
+
+    fs.writeFileSync("./src/db/adjacent-matrix.json", JSON.stringify(adjacencyListMatrix));
+};
