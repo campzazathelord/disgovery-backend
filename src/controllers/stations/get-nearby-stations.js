@@ -41,6 +41,11 @@ exports.getNearbyStations = async function (req, res) {
             where: sequelize.where(distance, { [Op.lte]: radiusMetres }),
         });
 
+        if (nearbyStations.length === 0)
+            return res
+                .send({ status: APIStatus.OK, data: nearbyStations })
+                .status(APIStatus.OK.status);
+
         let formattedNearbyStations = [];
 
         let now = dayjs();
