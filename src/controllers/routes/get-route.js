@@ -199,7 +199,8 @@ exports.getRoute = async function (req, res) {
 
             let line = await Route.findOne({ where: { route_id: groupedRoute[0].line } });
 
-            let tmpResult = { type: groupedRoute.type };
+            let tmpResult = {};
+            tmpResult.type = groupedRoute[0].type;
             //fix type
             tmpResult.from = await getStationDetails(groupedRoute[0].stops[0], orType);
             if (tmpResult.type === "board") tmpResult.fare = totalFares;
@@ -208,9 +209,10 @@ exports.getRoute = async function (req, res) {
                 desType,
             );
             if (tmpResult.type === "board") {
-                tmpResult.via_line.name = {
+                tmpResult.via_line = {name: { 
                     short_name: line.route_short_name,
                     long_name: line.route_long_name,
+                    }
                 };
                 tmpResult.via_line.color = line.route_color;
             }
