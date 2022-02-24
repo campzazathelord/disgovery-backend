@@ -1,6 +1,7 @@
 const { logger } = require("../../configs/config");
 const APIStatus = require("../../configs/api-errors");
 const Stop = require("../../models/Stop");
+const Route = require("../../models/Route");
 const sequelize = require("../../db/database");
 const { Op } = require("sequelize");
 const { getNearby } = require("../../functions/get-nearby");
@@ -8,6 +9,14 @@ const { generateRoute } = require("../../functions/algorithms");
 const dayjs = require("dayjs");
 const { QueryTypes } = require("sequelize");
 const { jointFareRules } = require("../../db/joint-fare-rules");
+const {
+    calculateFare,
+    addFares,
+    resetTotalFares,
+    getStationId,
+    groupByRoute,
+    getStationDetails,
+} = require("../../functions/get-routes-util");
 
 const MAX_RADIUS = 30000;
 const RADIUS_STEP = 5000;
@@ -21,7 +30,7 @@ exports.getRoute = async function (req, res) {
     if (!req.body.origin || !req.body.destination)
         return res.status(APIStatus.BAD_REQUEST.status).send({
             status: APIStatus.BAD_REQUEST.status,
-            message: "Origin and destination is required",
+            message: "Origin and destination are required",
         });
 
     let origin, destination, time;
@@ -46,6 +55,8 @@ exports.getRoute = async function (req, res) {
 
     let or_station = await getStationId(origin);
     let des_station = await getStationId(destination);
+    let orType = origin[0];
+    let desType = destination[0];
 
     console.log(or_station, des_station);
 
@@ -73,6 +84,13 @@ exports.getRoute = async function (req, res) {
         includeChildFares = fare_options.includes("child");
         includeDisabledFares = fare_options.includes("disabled");
     }
+
+    fare_options = {
+        adult: includeAdultFares,
+        elder: includeElderFares,
+        child: includeChildFares,
+        disabled: includeDisabledFares,
+    };
 
     const allRoutes = generateRoute(or_station, des_station);
 
@@ -109,9 +127,10 @@ exports.getRoute = async function (req, res) {
 
         realRoutes.push(tmp);
     }
-    console.log("kuyy");
     console.log(realRoutes);
-    let totalFares;
+    let totalFares = resetTotalFares(fare_options);
+    let result;
+    let resultArr = [];
 
     for (let i = 0; i < realRoutes.length; i++) {
         console.log(realRoutes[i]);
@@ -119,9 +138,9 @@ exports.getRoute = async function (req, res) {
         let firstStationOfRoute = realRoutes[i][0].stop_id;
         let lastStationOfRoute = realRoutes[i][0].stop_id;
         let currentRouteId = realRoutes[i][0].route_id;
-        totalFares = 0;
+        totalFares = resetTotalFares(fare_options);
 
-        let previousFare = 0;
+        //let previousFare = 0;
 
         for (let j = 0; j < realRoutes[i].length; j++) {
             // if (j === realRoutes[i].length - 1) {
@@ -143,7 +162,11 @@ exports.getRoute = async function (req, res) {
 
             if (j === realRoutes[i].length - 1) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
-                totalFares += await calculateFare(firstStationOfRoute, lastStationOfRoute);
+                totalFares = addFares(
+                    await totalFares,
+                    await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options),
+                );
+                // {adult: 10 , elder : 20}
             }
 
             if (
@@ -152,7 +175,10 @@ exports.getRoute = async function (req, res) {
             ) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
             } else {
-                totalFares += await calculateFare(firstStationOfRoute, lastStationOfRoute);
+                totalFares = addFares(
+                    await totalFares,
+                    await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options),
+                );
 
                 firstStationOfRoute = realRoutes[i][j].stop_id;
                 lastStationOfRoute = realRoutes[i][j].stop_id;
@@ -160,62 +186,61 @@ exports.getRoute = async function (req, res) {
             }
         }
 
-        console.log(totalFares);
+        console.log("totalFares=", totalFares);
+
+        groupedRoutes = groupByRoute(realRoutes[i]);
+        let direction_result = [];
+        for (let groupedRoute of groupedRoutes) {
+            let stopsStationDetails = [];
+            for (let stop of groupedRoute[0].stops) {
+                let detailResult = await getStationDetails(stop, "station");
+                stopsStationDetails.push(detailResult);
+            }
+
+            let line = await Route.findOne({ where: { route_id: groupedRoute[0].line } });
+
+            let tmpResult = { type: groupedRoute.type };
+            //fix type
+            tmpResult.from = await getStationDetails(groupedRoute[0].stops[0], orType);
+            if (tmpResult.type === "board") tmpResult.fare = totalFares;
+            tmpResult.to = await getStationDetails(
+                groupedRoute[0].stops[groupedRoute[0].stops.length - 1],
+                desType,
+            );
+            if (tmpResult.type === "board") {
+                tmpResult.via_line.name = {
+                    short_name: line.route_short_name,
+                    long_name: line.route_long_name,
+                };
+                tmpResult.via_line.color = line.route_color;
+            }
+            if (tmpResult.type === "board") {
+                tmpResult.passing = stopsStationDetails;
+            }
+            //         from: await getStationDetails(groupedRoute[0].stops[0]),
+            //         fare: totalFares,
+            //         to: await getStationDetails(
+            //             groupedRoute[0].stops[groupedRoute[0].stops.length - 1],
+            //         ),
+            //         via_line: {
+            //             name: {
+            //                 short_name: line.route_short_name,
+            //                 long_name: line.route_long_name,
+            //             },
+            //             color: line.route_color,
+            //         },
+            //         passing: stopsStationDetails,
+            //     };
+            direction_result.push(tmpResult);
+        };
+
+        result = { fares: totalFares };
+        result.origin = await getStationDetails(or_station, orType);
+        result.destination = await getStationDetails(des_station, desType);
+        (result.directions = direction_result), resultArr.push(result);
     }
 
-    let result = 1;
+    console.log(resultArr);
 
-    return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: result });
+    return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: resultArr });
 };
-
-async function calculateFare(origin, destination) {
-    const price = await sequelize.query(
-        `
-        SELECT price
-        FROM fare_attributes
-        WHERE fare_id = (SELECT fare_id
-                        FROM fare_rules
-                        WHERE origin_id = '${origin}' and destination_id = '${destination}'
-                        LIMIT 1)
-        AND fare_type = 'adult';
-        `,
-        {
-            type: QueryTypes.SELECT,
-            maxResult: 1,
-        },
-    );
-
-    if (price[0] && price[0].price) return parseFloat(price[0].price);
-    else return 0;
-}
-
-async function getStationId(stationArray) {
-    if (stationArray[0] === "coordinates") {
-        let coordinates = stationArray[1].split(",");
-        let lat = coordinates[0];
-        let lng = coordinates[1];
-        logger.info(lat + " " + lng);
-
-        try {
-            for (let r = RADIUS_STEP; r < MAX_RADIUS; r += RADIUS_STEP) {
-                let station = (await getNearby(lat, lng, r, MAX_NEARBY_STATIONS)) || [];
-
-                console.log(station);
-
-                if (station.length === 0) continue;
-                else return station[0].stop_id;
-            }
-        } catch (error) {
-            logger.error(error);
-            throw error;
-        }
-    } else if (stationArray[0] === "station") {
-        let station = stationArray[1];
-        logger.info(station);
-        return station;
-    } // else if (stationArray[0] === "google") {
-    //  let google = stationArray[1];
-    // logger.info(or_google);
-    //}
-    return "";
-}

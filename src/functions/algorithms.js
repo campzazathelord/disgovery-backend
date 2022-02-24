@@ -176,5 +176,5 @@ exports.generateRoute = (origin, destination) => {
 
     const graph = new WeightedGraph(data);
 
-    return graph.DijkstraFastest(origin, destination);
+    return Array.from(new Set(graph.DijkstraFastest(origin, destination).map(JSON.stringify)), JSON.parse);
 };
