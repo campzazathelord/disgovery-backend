@@ -490,8 +490,6 @@ async function findAllNextStations(
         },
     );
 
-    console.log(nextStations);
-
     if (nextStations.length === 0) return [];
 
     for (station of nextStations) {
