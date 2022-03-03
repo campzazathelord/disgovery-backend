@@ -195,6 +195,12 @@ async function parseTime(input, maxTime) {
         seconds: 0,
     };
 
+    let splittedMaxTime = {
+        hours: 48,
+        minutes: 0,
+        seconds: 0,
+    };
+
     try {
         const time = input.split(":");
         splittedTime = {
@@ -216,7 +222,7 @@ async function parseTime(input, maxTime) {
             }
 
         if (maxTime.length === 0) {
-            const splittedMaxTime = {
+            splittedMaxTime = {
                 hours: 48,
                 minutes: 0,
                 seconds: 0,
@@ -225,7 +231,7 @@ async function parseTime(input, maxTime) {
             try {
                 const mts = maxTime[0].max_time.split(":");
 
-                const splittedMaxTime = {
+                splittedMaxTime = {
                     hours: parseInt(mts[0]),
                     minutes: parseInt(mts[1]),
                     seconds: parseInt(mts[2]),
