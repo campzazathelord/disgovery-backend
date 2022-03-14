@@ -16,7 +16,9 @@ const {
     getStationId,
     groupByRoute,
     getStationDetails,
+    getNextTrainTime,
 } = require("../../functions/get-routes-util");
+const { getGTFSFormattedCurrentTime } = require("../../functions/get-gtfs-formatted-current-time");
 
 const MAX_RADIUS = 30000;
 const RADIUS_STEP = 5000;
@@ -127,10 +129,13 @@ exports.getRoute = async function (req, res) {
 
         realRoutes.push(tmp);
     }
+    console.log("kaufsdfgsgsdf");
     console.log(realRoutes);
+    console.log("kaufsdfgsgsdf");
     let totalFares = resetTotalFares(fare_options);
-    let result;
+    let result = {};
     let resultArr = [];
+    let totalTime = {};
 
     for (let i = 0; i < realRoutes.length; i++) {
         console.log(realRoutes[i]);
@@ -139,7 +144,7 @@ exports.getRoute = async function (req, res) {
         let lastStationOfRoute = realRoutes[i][0].stop_id;
         let currentRouteId = realRoutes[i][0].route_id;
         totalFares = resetTotalFares(fare_options);
-
+        totalTime = {};
         //let previousFare = 0;
 
         for (let j = 0; j < realRoutes[i].length; j++) {
@@ -209,10 +214,11 @@ exports.getRoute = async function (req, res) {
                 desType,
             );
             if (tmpResult.type === "board") {
-                tmpResult.via_line = {name: { 
-                    short_name: line.route_short_name,
-                    long_name: line.route_long_name,
-                    }
+                tmpResult.via_line = {
+                    name: {
+                        short_name: line.route_short_name,
+                        long_name: line.route_long_name,
+                    },
                 };
                 tmpResult.via_line.color = line.route_color;
             }
@@ -234,9 +240,10 @@ exports.getRoute = async function (req, res) {
             //         passing: stopsStationDetails,
             //     };
             direction_result.push(tmpResult);
-        };
+        }
 
-        result = { fares: totalFares };
+        result.schedule = 0;
+        result.fares = totalFares;
         result.origin = await getStationDetails(or_station, orType);
         result.destination = await getStationDetails(des_station, desType);
         (result.directions = direction_result), resultArr.push(result);
@@ -246,3 +253,42 @@ exports.getRoute = async function (req, res) {
 
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: resultArr });
 };
+
+/*
+totaltime = {
+    depart = now
+    arrival
+    duration = 0 
+}
+routeArrivalTime = now
+for transfers
+    nextTrainTime = getNextTrainTime(stop_id,routeArrivalTime)
+    
+    waitTime = nextTrainTime - routeArrivalTime
+    
+    duration += waitTime
+    duration += transferTime*
+    for stations
+        if i===1 continue
+        time = getTime(station[i],station[i-1])
+        duration += time
+
+    routeArrivalTime = now+duration    
+
+arrival = depart.add(duration)
+
+getNextTrainTime(stop_id,routeArrivalTime){
+    nowDateNumber = now.get(date)
+    const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    nowDate = WEEKDAYS[nowDateNumber]
+    e <- select service_id from trips where route_id = route_id
+    a <- select trip_id from stop_times where stop_id = stop_id //check first and last station in trip
+    b <- select service_id from calendar where ${nowDate} = 1
+    z <- e join b
+    c <- select trip_id from stop_times where service_id = z
+    a join c
+}
+timeBetweenStation(stop1,stop2){
+    ...
+}
+*/

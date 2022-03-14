@@ -4,6 +4,8 @@ const { getNearby } = require("../functions/get-nearby");
 const { QueryTypes } = require("sequelize");
 const Translation = require("../models/Translation");
 const Stop = require("../models/Stop");
+const dayjs = require("dayjs");
+const { getGTFSFormattedCurrentTime } = require("./get-gtfs-formatted-current-time");
 
 exports.calculateFare = async function (origin, destination, fare_options) {
     const prices = await sequelize.query(
@@ -217,3 +219,162 @@ function isFromGoogle(originType) {
 function isFromStation(originType) {
     return originType === "station";
 }
+
+exports.getNextTrainTime = async function (origin,dest,routeArrivalTime) { //routeArrivalTime and return are in dayjs format
+    let now = dayjs();
+    let todaysDay = now.day();
+    let timeNowString = await getGTFSFormattedCurrentTime(routeArrivalTime);
+    
+    let trips;
+    try {
+        trips = await sequelize.query(
+            `
+            SELECT trip_id,start_time,headway_secs
+            FROM frequencies
+            WHERE trip_id IN (select trips.trip_id from stop_times current
+                                inner join stop_times head on head.stop_sequence=1 and current.trip_id=head.trip_id and current.stop_id='${origin}' and head.stop_id='${dest}'
+                                inner join (select trip_id, stop_id, max(stop_sequence) as max_sequence from stop_times group by trip_id) as destination_sequence on current.trip_id=destination_sequence.trip_id
+                                inner join stop_times destination on destination_sequence.max_sequence=destination.stop_sequence and current.trip_id=destination.trip_id
+                                inner join stops destination_details on destination.stop_id=destination_details.stop_id
+                                inner join trips on current.trip_id = trips.trip_id
+                                inner join calendar on trips.service_id = calendar.service_id and calendar.${WEEKDAYS[todaysDay]} = '1'
+                                inner join routes on trips.route_id = routes.route_id
+                                inner join frequencies on frequencies.trip_id=current.trip_id and time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) < time_to_sec(time(frequencies.end_time)) + frequencies.headway_secs and time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) >= time_to_sec(time(frequencies.start_time)));
+            `,
+            {
+                type: QueryTypes.SELECT,
+            },
+        );
+    } catch (error) {
+        logger.error(error);
+        trips = [];
+    }
+    //select closest time then add until pass 'now'
+    dayjsTime = toDayJSFormat(trip.start_time);
+    let lowestDiffTime;//in min
+    let lowestTime
+    for (trip in trips){
+        time = routeArrivalTime.diff(dayjsTime,'minute');
+        if(!lowestDiffTime||lowestDiffTime>time){
+            lowestDiffTime=time;
+            lowestTime = dayjsTime
+        }else{
+            continue;
+        }
+    };
+    
+    return lowestTime;
+};
+
+exports.timeBetweenStation = async function(stop1,stop2){
+    
+    
+    const timeBtwStation = await sequelize.query(
+        `
+        SELECT trip_id,fromStopID,toStopID,timeInSec
+        FROM (SELECT route_id, trip_id ,fromStopID,stop_id AS toStopID , (timeInSec - prevTimeInSec) AS timeInSec, stop_sequence
+        FROM    (SELECT route_id, stop_times.trip_id AS trip_id, stop_id, TIME_TO_SEC(arrival_time) AS timeInSec,
+                    LAG(TIME_TO_SEC(arrival_time)) OVER (PARTITION BY route_id ORDER BY stop_sequence) AS prevTimeInSec,
+                    LAG(stop_id) OVER (PARTITION BY route_id ORDER BY stop_sequence) AS fromStopID, stop_sequence
+                FROM (  SELECT trip_id, route_id, maxStopSequence
+                        FROM (  SELECT trips.trip_id, route_id , maxStopSequence, ROW_NUMBER() over (PARTITION BY route_id ORDER BY maxStopSequence DESC ) AS rowNumber
+                                FROM (  SELECT trip_id, MAX(stop_sequence) AS maxStopSequence
+                                        FROM stop_times
+                                        GROUP BY trip_id) AS trip_id_maxstopseq
+                                INNER JOIN trips
+                                ON trips.trip_id = trip_id_maxstopseq.trip_id) AS trips_route_maxstopseq
+                        WHERE rowNumber = 1) AS trip_route_maxstopseq
+                INNER JOIN stop_times
+                ON trip_route_maxstopseq.trip_id = stop_times.trip_id) AS all_stops_with_time
+        ORDER BY trip_id,stop_sequence) AS timeBtwEachSuccesiveStop
+        WHERE fromStopID = '${stop1}' and toStopID = '${stop2}';
+        `,
+        {
+            type: QueryTypes.SELECT,
+        },
+    );
+    return timeBtwStation.timeInSec;
+};
+
+exports.getTransferTime = async function(stop1,stop2){
+    
+    
+    const transferTime = await sequelize.query(
+        `
+        SELECT min_transfer_time
+        FROM transfers
+        WHERE from_stop_id = '${stop1}' and to_stop_id = '${stop2}';
+        `,
+        {
+            type: QueryTypes.SELECT,
+        },
+    );
+    return transferTime.min_transfer_time;
+};
+
+async function toDayJSFormat(input){
+    let splittedTime = {
+        hours: 0,
+        minutes: 0,
+        seconds: 0,
+    };
+
+    try {
+        const time = input.split(":");
+        splittedTime = {
+            hours: parseInt(time[0]),
+            minutes: parseInt(time[1]),
+            seconds: parseInt(time[2]),
+        };
+    } catch (error) {
+        return "INVALID TIME: INPUT IS NOT FORMATTED AS HH:mm:ss";
+    }
+
+    let date = dayjs().set("hour", 0).set("minute", 0).set("second", 0);
+    if (splittedTime.hours >= 24) {
+        if (!maxTime)
+            try {
+                maxTime = (await fetchMaxTime()) || [];
+            } catch (error) {
+                return `${error}`;
+            }
+
+        if (maxTime.length === 0) {
+            const splittedMaxTime = {
+                hours: 48,
+                minutes: 0,
+                seconds: 0,
+            };
+        } else {
+            try {
+                const mts = maxTime[0].max_time.split(":");
+
+                const splittedMaxTime = {
+                    hours: parseInt(mts[0]),
+                    minutes: parseInt(mts[1]),
+                    seconds: parseInt(mts[2]),
+                };
+            } catch (error) {
+                return "INVALID MAX TIME";
+            }
+        }
+
+        if (
+            splittedTime.hours > splittedMaxTime.hours ||
+            (splittedTime.minutes > splittedMaxTime.minutes &&
+                splittedTime.hours === splittedMaxTime.hours) ||
+            (splittedTime.seconds > splittedMaxTime.seconds &&
+                splittedTime.minutes === splittedMaxTime.minutes &&
+                splittedTime.hours === splittedMaxTime.hours)
+        ) {
+            return "INVALID TIME";
+        }
+        splittedTime.hours = splittedTime.hours - 24;
+    }
+
+    return date
+        .add(splittedTime.hours, "hour")
+        .add(splittedTime.minutes, "minute")
+        .add(splittedTime.seconds, "second")
+        .format();
+};
