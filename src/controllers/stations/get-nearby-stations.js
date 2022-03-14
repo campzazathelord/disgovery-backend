@@ -58,7 +58,7 @@ exports.getNearbyStations = async function (req, res) {
             try {
                 nearbyStationLines = await sequelize.query(
                     `
-                    select trips.trip_id, trips.trip_headsign, trips.route_id, routes.route_short_name, routes.route_long_name, routes.route_color, destination.stop_id as destination_id, destination_details.stop_name as destination_name, destination_details.stop_code as destination_code, (headway_secs * ceiling((time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in from stop_times current
+                    select trips.trip_id, trips.trip_headsign, trips.route_id, routes.route_short_name, routes.route_long_name, routes.route_color, routes.route_type, destination.stop_id as destination_id, destination_details.stop_name as destination_name, destination_details.stop_code as destination_code, (headway_secs * ceiling((time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in from stop_times current
                         inner join stop_times head on head.stop_sequence=1 and current.trip_id=head.trip_id and current.stop_id='${nearbyStations[key].stop_id}'
                         inner join (select trip_id, stop_id, max(stop_sequence) as max_sequence from stop_times group by trip_id) as destination_sequence on current.trip_id=destination_sequence.trip_id
                         inner join stop_times destination on destination_sequence.max_sequence=destination.stop_sequence and current.trip_id=destination.trip_id
@@ -88,6 +88,7 @@ exports.getNearbyStations = async function (req, res) {
                             short_name: nearbyStationLines[key].route_short_name,
                             long_name: nearbyStationLines[key].route_long_name,
                         },
+                        route_type: nearbyStationLines[key].route_type,
                         headsign: nearbyStationLines[key].trip_headsign,
                         color: nearbyStationLines[key].route_color,
                         destination: {
