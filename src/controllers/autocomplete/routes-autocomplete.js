@@ -67,18 +67,16 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
                     id: paths["stop_id"],
                     code: paths["stop_id"].slice(4),
                     name: { en: paths["stop_name"], th: paths["translation"] },
-                }); //hereeeeee
+                });
             }
         }
-
-        console.log(i);
 
         infoData.push({
             route_id: i,
             stations: tmpArrPathWays,
             type: routesObj[i][0],
             name: { long_name: routesObj[i][1], short_name: routesObj[i][2] },
-        }); //hereeee
+        });
     }
 
     res.send({ status: APIStatus.OK, data: infoData }).status(APIStatus.OK.status);
