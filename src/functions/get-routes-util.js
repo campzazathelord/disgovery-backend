@@ -250,18 +250,23 @@ exports.getNextTrainTime = async function (origin,dest,routeArrivalTime) { //rou
         trips = [];
     }
     //select closest time then add until pass 'now'
-    dayjsTime = toDayJSFormat(trip.start_time);
     let lowestDiffTime;//in min
-    let lowestTime
+    let lowestTime;
+    let headway;
     for (trip in trips){
-        time = routeArrivalTime.diff(dayjsTime,'minute');
+        let dayjsTime = toDayJSFormat(trip.start_time);
+        let time = routeArrivalTime.diff(dayjsTime,'minute');
         if(!lowestDiffTime||lowestDiffTime>time){
             lowestDiffTime=time;
             lowestTime = dayjsTime
+            headway = trip.headway
         }else{
             continue;
         }
     };
+    while(lowestTime.diff(now)>=0){
+        lowestTime.add(headway,'second');
+    }
     
     return lowestTime;
 };
