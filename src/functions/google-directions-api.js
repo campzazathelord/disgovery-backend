@@ -157,7 +157,7 @@ exports.getDirectionsFromGoogle = async function (
             copyrights: directions.routes[0].copyrights,
         };
     } else {
-        logger.log(
+        logger.error(
             `At getDirectionsFromGoogle: Couldn't find ${mode} routes[0] from ${ORIGIN} to ${DESTINATION}.`,
         );
     }
