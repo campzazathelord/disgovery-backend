@@ -220,11 +220,12 @@ function isFromStation(originType) {
     return originType === "station";
 }
 
-exports.getNextTrainTime = async function (origin,dest,routeArrivalTime) { //routeArrivalTime and return are in dayjs format
+exports.getNextTrainTime = async function (origin, dest, routeArrivalTime) {
+    //routeArrivalTime and return are in dayjs format
     let now = dayjs();
     let todaysDay = now.day();
     let timeNowString = await getGTFSFormattedCurrentTime(routeArrivalTime);
-    
+
     let trips;
     try {
         trips = await sequelize.query(
@@ -250,30 +251,28 @@ exports.getNextTrainTime = async function (origin,dest,routeArrivalTime) { //rou
         trips = [];
     }
     //select closest time then add until pass 'now'
-    let lowestDiffTime;//in min
+    let lowestDiffTime; //in min
     let lowestTime;
     let headway;
-    for (trip in trips){
+    for (trip in trips) {
         let dayjsTime = toDayJSFormat(trip.start_time);
-        let time = routeArrivalTime.diff(dayjsTime,'minute');
-        if(!lowestDiffTime||lowestDiffTime>time){
-            lowestDiffTime=time;
-            lowestTime = dayjsTime
-            headway = trip.headway
-        }else{
+        let time = routeArrivalTime.diff(dayjsTime, "minute");
+        if (!lowestDiffTime || lowestDiffTime > time) {
+            lowestDiffTime = time;
+            lowestTime = dayjsTime;
+            headway = trip.headway;
+        } else {
             continue;
         }
-    };
-    while(lowestTime.diff(now)>=0){
-        lowestTime.add(headway,'second');
     }
-    
+    while (lowestTime.diff(now) >= 0) {
+        lowestTime.add(headway, "second");
+    }
+
     return lowestTime;
 };
 
-exports.timeBetweenStation = async function(stop1,stop2){
-    
-    
+exports.timeBetweenStation = async function (stop1, stop2) {
     const timeBtwStation = await sequelize.query(
         `
         SELECT trip_id,fromStopID,toStopID,timeInSec
@@ -301,9 +300,7 @@ exports.timeBetweenStation = async function(stop1,stop2){
     return timeBtwStation.timeInSec;
 };
 
-exports.getTransferTime = async function(stop1,stop2){
-    
-    
+exports.getTransferTime = async function (stop1, stop2) {
     const transferTime = await sequelize.query(
         `
         SELECT min_transfer_time
@@ -317,7 +314,7 @@ exports.getTransferTime = async function(stop1,stop2){
     return transferTime.min_transfer_time;
 };
 
-async function toDayJSFormat(input){
+async function toDayJSFormat(input) {
     let splittedTime = {
         hours: 0,
         minutes: 0,
@@ -382,4 +379,4 @@ async function toDayJSFormat(input){
         .add(splittedTime.minutes, "minute")
         .add(splittedTime.seconds, "second")
         .format();
-};
+}
