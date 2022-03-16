@@ -11,12 +11,12 @@ const StopTime = require("../../models/StopTime");
 exports.getStationDetails = async function getStationDetails(req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
 
-    if (!req.params.uid)
+    if (!req.params.id)
         return res
             .status(APIStatus.BAD_REQUEST.status)
-            .send({ status: APIStatus.BAD_REQUEST.status, message: "Station UID is required." });
+            .send({ status: APIStatus.BAD_REQUEST.status, message: "Station ID is required." });
 
-    let stationId = req.params.uid;
+    let stationId = req.params.id;
     let options = req.query.options;
     let textArray;
 
@@ -41,6 +41,7 @@ exports.getStationDetails = async function getStationDetails(req, res) {
     let resultStop,
         resultRoutes,
         data,
+        translation,
         lines = [];
 
     try {
@@ -60,6 +61,16 @@ exports.getStationDetails = async function getStationDetails(req, res) {
             `SELECT DISTINCT * FROM routes WHERE route_id IN (SELECT DISTINCT route_id FROM trips WHERE trip_id IN (SELECT DISTINCT trip_id FROM stop_times WHERE (stop_id = '${stationId}')))`,
             {
                 type: QueryTypes.SELECT,
+            },
+        );
+
+        translation = await sequelize.query(
+            `
+            select translation from translations where table_name='stops' and field_name='stop_name' and record_id='${stationId}'
+            `,
+            {
+                type: QueryTypes.SELECT,
+                maxResult: 1,
             },
         );
     } catch (error) {
@@ -83,8 +94,8 @@ exports.getStationDetails = async function getStationDetails(req, res) {
 
     if (!options) {
         data = {
-            name: resultStop.stop_name.trim(),
-            uid: stationId,
+            name: { en: resultStop.stop_name.trim(), th: translation[0].translation },
+            id: stationId,
             code: resultStop.stop_code,
             lines: lines,
             coordinates: {

@@ -21,7 +21,7 @@ router.get("/getroutes/:id1/:id2", getRoutes);
 router.get("/getfarerates/:id1/:id2", getFareRates);
 
 router.get("/station/nearby", getNearbyStations); // API 1-1
-router.get("/station/id/:uid", getStationDetails); // API 1-2
+router.get("/station/id/:id", getStationDetails); // API 1-2
 router.get("/shape/:route_id", getShape); // API 1-4
 router.get("/trip/:id", getTripDetails); // API 1-5
 
