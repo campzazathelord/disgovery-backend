@@ -60,7 +60,7 @@ exports.getRoute = async function (req, res) {
     let orType = origin[0];
     let desType = destination[0];
 
-    console.log(or_station, des_station);
+    //console.log(or_station, des_station);
 
     if (!or_station || !des_station)
         return res.status(APIStatus.BAD_REQUEST.status).send({
@@ -129,16 +129,16 @@ exports.getRoute = async function (req, res) {
 
         realRoutes.push(tmp);
     }
-    console.log("kaufsdfgsgsdf");
-    console.log(realRoutes);
-    console.log("kaufsdfgsgsdf");
+    //console.log("kaufsdfgsgsdf");
+    console.log("realRoutes:",realRoutes);
+    //console.log("kaufsdfgsgsdf");
     let totalFares = resetTotalFares(fare_options);
     let result = {};
     let resultArr = [];
     let totalTime = {};
 
     for (let i = 0; i < realRoutes.length; i++) {
-        console.log(realRoutes[i]);
+        //console.log(realRoutes[i]);
 
         let firstStationOfRoute = realRoutes[i][0].stop_id;
         let lastStationOfRoute = realRoutes[i][0].stop_id;
@@ -191,8 +191,8 @@ exports.getRoute = async function (req, res) {
             }
         }
 
-        console.log("totalFares=", totalFares);
-
+        //console.log("totalFares=", totalFares);
+        //console.log("realRoutes[i]",realRoutes[i]);
         groupedRoutes = groupByRoute(realRoutes[i]);
         let direction_result = [];
         for (let groupedRoute of groupedRoutes) {
@@ -200,31 +200,33 @@ exports.getRoute = async function (req, res) {
             for (let stop of groupedRoute[0].stops) {
                 let detailResult = await getStationDetails(stop, "station");
                 stopsStationDetails.push(detailResult);
-            }
+            };
 
             let line = await Route.findOne({ where: { route_id: groupedRoute[0].line } });
+            for(indivdualRoute of groupedRoute){
+                //console.log("indivdualRoute",indivdualRoute);
+                let tmpResult = {};
+                tmpResult.type = indivdualRoute.type;
 
-            let tmpResult = {};
-            tmpResult.type = groupedRoute[0].type;
             //fix type
-            tmpResult.from = await getStationDetails(groupedRoute[0].stops[0], orType);
-            if (tmpResult.type === "board") tmpResult.fare = totalFares;
-            tmpResult.to = await getStationDetails(
-                groupedRoute[0].stops[groupedRoute[0].stops.length - 1],
-                desType,
-            );
-            if (tmpResult.type === "board") {
-                tmpResult.via_line = {
-                    name: {
-                        short_name: line.route_short_name,
-                        long_name: line.route_long_name,
-                    },
+                tmpResult.from = await getStationDetails(indivdualRoute.stops[0], orType);
+                if (tmpResult.type === "board") tmpResult.fare = totalFares;
+                    tmpResult.to = await getStationDetails(
+                        indivdualRoute.stops[indivdualRoute.stops.length - 1],
+                    desType,
+                );
+                if (tmpResult.type === "board") {
+                    tmpResult.via_line = {
+                        name: {
+                            short_name: line.route_short_name,
+                            long_name: line.route_long_name,
+                        },
+                    };
+                    tmpResult.via_line.color = line.route_color;
                 };
-                tmpResult.via_line.color = line.route_color;
-            }
-            if (tmpResult.type === "board") {
-                tmpResult.passing = stopsStationDetails;
-            }
+                if (tmpResult.type === "board") {
+                        tmpResult.passing = stopsStationDetails;
+                };
             //         from: await getStationDetails(groupedRoute[0].stops[0]),
             //         fare: totalFares,
             //         to: await getStationDetails(
@@ -239,8 +241,10 @@ exports.getRoute = async function (req, res) {
             //         },
             //         passing: stopsStationDetails,
             //     };
-            direction_result.push(tmpResult);
-        }
+                direction_result.push(tmpResult);
+            };
+            
+        };
 
         result.schedule = 0;
         result.fares = totalFares;
@@ -249,17 +253,18 @@ exports.getRoute = async function (req, res) {
         (result.directions = direction_result), resultArr.push(result);
     }
 
-    console.log(resultArr);
+    //console.log(resultArr);
 
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: resultArr });
 };
 
-/*
+/*MAIN SCHEDULE
 totaltime = {
-    depart = now
-    arrival
-    duration = 0 
-}
+    depart : now,
+    arrival : ???,
+    duration : 0, 
+};
+
 routeArrivalTime = now
 for transfers
     nextTrainTime = getNextTrainTime(stop_id,routeArrivalTime)
@@ -276,19 +281,4 @@ for transfers
     routeArrivalTime = now+duration    
 
 arrival = depart.add(duration)
-
-getNextTrainTime(stop_id,routeArrivalTime){
-    nowDateNumber = now.get(date)
-    const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-    nowDate = WEEKDAYS[nowDateNumber]
-    e <- select service_id from trips where route_id = route_id
-    a <- select trip_id from stop_times where stop_id = stop_id //check first and last station in trip
-    b <- select service_id from calendar where ${nowDate} = 1
-    z <- e join b
-    c <- select trip_id from stop_times where service_id = z
-    a join c
-}
-timeBetweenStation(stop1,stop2){
-    ...
-}
 */
