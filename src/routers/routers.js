@@ -11,6 +11,7 @@ const { getNearbyStations } = require("../controllers/stations/get-nearby-statio
 const { getTripDetails } = require("../controllers/trips/get-trip-details");
 const { getRoute } = require("../controllers/routes/get-route");
 const { getShape } = require("../controllers/trips/get-shape");
+const { getRoutesFromGoogle } = require("../controllers/routes/get-routes-from-google");
 
 const formUrlEncoded = (x) =>
     Object.keys(x).reduce((p, c) => p + `&${c}=${encodeURIComponent(x[c])}`, "");
@@ -31,5 +32,6 @@ router.get("/autocomplete/stations", getStationAutocomplete); // API 2-2
 router.post("/route/new", getRoute); // API 3-1
 
 router.post("/:id/test", test);
+router.get("/google/directions/test", getRoutesFromGoogle);
 
 module.exports = router;
