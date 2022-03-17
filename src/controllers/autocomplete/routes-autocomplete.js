@@ -17,7 +17,8 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
 
     const stopID = await sequelize.query(
         `
-        SELECT route_id, stop_id, stop_code, stop_name, translation from (SELECT routes.route_id,stop_times.stop_id, stop_code, stop_name, stop_times.trip_id, stop_times.stop_sequence
+        SELECT route_id, stop_id, stop_code, stop_name, translation, stop_lon, stop_lat
+        from (SELECT routes.route_id,stop_times.stop_id, stop_code, stop_name, stop_times.trip_id, stop_times.stop_sequence, stop_lon, stop_lat
             FROM (  SELECT trip_id, route_id, maxStopSequence
                     FROM (  SELECT trips.trip_id, route_id , maxStopSequence, ROW_NUMBER() over (PARTITION BY route_id ORDER BY maxStopSequence DESC ) AS rowNumber
                             FROM (  SELECT trip_id, MAX(stop_sequence) AS maxStopSequence
@@ -63,10 +64,17 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
 
         for (let paths of Object.values(stopID)) {
             if (paths["route_id"] == i) {
+
+                let latLong = {
+                    lat: paths["stop_lat"],
+                    lng: paths["stop_lon"]
+                }
+
                 tmpArrPathWays.push({
                     id: paths["stop_id"],
                     code: paths["stop_id"].slice(4),
                     name: { en: paths["stop_name"], th: paths["translation"] },
+                    coordinates: latLong
                 });
             }
         }
