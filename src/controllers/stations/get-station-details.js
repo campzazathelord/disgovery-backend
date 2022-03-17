@@ -33,7 +33,8 @@ exports.getStationDetails = async function getStationDetails(req, res) {
                     element === "code" ||
                     element === "coordinates" ||
                     element === "lines" ||
-                    element === "transfers"
+                    element === "transfers" ||
+                    element === "routes"
                 )
             ) {
                 return res
@@ -42,7 +43,7 @@ exports.getStationDetails = async function getStationDetails(req, res) {
             }
         }
     } else {
-        textArray = ["name", "code", "coordinates", "lines", "transfers"];
+        textArray = ["name", "code", "coordinates", "lines", "transfers", "routes"];
     }
 
     let resultStop,
@@ -51,8 +52,10 @@ exports.getStationDetails = async function getStationDetails(req, res) {
         translation,
         linesInStation,
         transfersInStation,
+        routesOfStation,
         lines = [],
-        transfers = [];
+        transfers = [],
+        routes = [];
 
     let now = dayjs();
     let todaysDay = now.day();
@@ -108,6 +111,20 @@ exports.getStationDetails = async function getStationDetails(req, res) {
             );
         }
 
+        routesOfStation = await sequelize.query(
+            `
+            select routes.route_id, route_short_name, route_long_name, route_color, route_type from (select stop_id, stop_name, stop_code from stops where stop_id='${stationId}') as stops
+                inner join translations on translations.table_name='stops' and translations.field_name='stop_name' and translations.record_id=stops.stop_id
+                inner join (select trip_id, stop_id from stop_times) as all_trips_with_stops on stops.stop_id=all_trips_with_stops.stop_id
+                inner join (select route_id, trip_id from trips) as trips on trips.trip_id=all_trips_with_stops.trip_id
+                inner join routes on trips.route_id=routes.route_id
+                group by route_id;
+            `,
+            {
+                type: QueryTypes.SELECT,
+            },
+        );
+
         if (textArray.includes("transfers")) {
             transfersInStation = await sequelize.query(
                 `
@@ -138,6 +155,7 @@ exports.getStationDetails = async function getStationDetails(req, res) {
 
     Object.keys(linesInStation).map((key) => {
         lines.push({
+            route_id: linesInStation[key].route_id,
             route_name: {
                 short_name: linesInStation[key].route_short_name,
                 long_name: linesInStation[key].route_long_name,
@@ -167,7 +185,8 @@ exports.getStationDetails = async function getStationDetails(req, res) {
             },
             code: transfersInStation[key].stop_code,
             duration: transfersInStation[key].min_transfer_time,
-            via: {
+            route: {
+                route_id: transfersInStation[key].route_id,
                 route_name: {
                     short_name: transfersInStation[key].route_short_name,
                     long_name: transfersInStation[key].route_long_name,
@@ -178,6 +197,18 @@ exports.getStationDetails = async function getStationDetails(req, res) {
         });
     });
 
+    Object.keys(routesOfStation).map((key) => {
+        routes.push({
+            route_id: routesOfStation[key].route_id,
+            route_name: {
+                short_name: routesOfStation[key].route_short_name,
+                long_name: routesOfStation[key].route_long_name,
+            },
+            route_type: routesOfStation[key].route_type,
+            route_color: routesOfStation[key].route_color,
+        });
+    });
+
     if (!options) {
         data = {
             name: { en: resultStop.stop_name.trim(), th: translation[0].translation },
@@ -185,6 +216,7 @@ exports.getStationDetails = async function getStationDetails(req, res) {
             code: resultStop.stop_code,
             lines: lines,
             transfers: transfers,
+            routes: routes,
             coordinates: {
                 lat: resultStop.stop_lat,
                 lng: resultStop.stop_lon,
@@ -203,6 +235,7 @@ exports.getStationDetails = async function getStationDetails(req, res) {
                     lng: resultStop.stop_lon,
                 };
             } else if (element === "transfers") data.transfers = transfers;
+            else if (element === "routes") data.routes = routes;
         });
     }
 
