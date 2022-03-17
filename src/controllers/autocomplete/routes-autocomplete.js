@@ -67,7 +67,7 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
 
                 let latLong = {
                     lat: paths["stop_lat"],
-                    lon: paths["stop_lon"]
+                    lng: paths["stop_lon"]
                 }
 
                 tmpArrPathWays.push({
