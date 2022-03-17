@@ -7,6 +7,7 @@ const Stop = require("../models/Stop");
 const dayjs = require("dayjs");
 const { getGTFSFormattedCurrentTime } = require("./get-gtfs-formatted-current-time");
 
+
 exports.calculateFare = async function (origin, destination, fare_options) {
     const prices = await sequelize.query(
         `
@@ -51,6 +52,9 @@ exports.resetTotalFares = function (fare_options) {
 };
 
 exports.getStationId = async function (stationArray) {
+    const RADIUS_STEP = 5000;
+    const MAX_RADIUS = 30000;
+    const MAX_NEARBY_STATIONS = 3;
     if (stationArray[0] === "coordinates") {
         let coordinates = stationArray[1].split(",");
         let lat = coordinates[0];
@@ -61,7 +65,7 @@ exports.getStationId = async function (stationArray) {
             for (let r = RADIUS_STEP; r < MAX_RADIUS; r += RADIUS_STEP) {
                 let station = (await getNearby(lat, lng, r, MAX_NEARBY_STATIONS)) || [];
 
-                console.log(station);
+                console.log('found',station);
 
                 if (station.length === 0) continue;
                 else return station[0].stop_id;

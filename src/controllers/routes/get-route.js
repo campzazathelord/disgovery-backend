@@ -132,7 +132,7 @@ exports.getRoute = async function (req, res) {
         realRoutes.push(tmp);
     }
     //console.log("kaufsdfgsgsdf");
-    console.log("realRoutes:",realRoutes);
+    //console.log("realRoutes:",realRoutes);
     //console.log("kaufsdfgsgsdf");
     let totalFares = resetTotalFares(fare_options);
     let result = {};
@@ -160,8 +160,8 @@ exports.getRoute = async function (req, res) {
                 );
                 fareResult.push(
                     {
-                        from: await getStationDetails(firstStationOfRoute),
-                        to: await getStationDetails(lastStationOfRoute),
+                        from: await getStationDetails(firstStationOfRoute,'station'),
+                        to: await getStationDetails(lastStationOfRoute,'station'),
                         fare: await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options)
                     }
                 )
@@ -180,8 +180,8 @@ exports.getRoute = async function (req, res) {
 
                 fareResult.push(
                     {
-                        from: await getStationDetails(firstStationOfRoute),
-                        to: await getStationDetails(lastStationOfRoute),
+                        from: await getStationDetails(firstStationOfRoute,'station'),
+                        to: await getStationDetails(lastStationOfRoute,'station'),
                         fare: await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options)
                     }
                 )
@@ -211,16 +211,16 @@ exports.getRoute = async function (req, res) {
                 stopsStationDetails = [];
 
                 for (let stop of individualRoute.stops) {
-                    console.log('stop',stop);
+                    //console.log('stop',stop);
                     let detailResult = await getStationDetails(stop, "station");
                     stopsStationDetails.push(detailResult);
                 };
 
             //fix type
                 tmpResult.from = await getStationDetails(individualRoute.stops[0], orType);
-                if (tmpResult.type === "board") tmpResult.fare = totalFares;
-                    tmpResult.to = await getStationDetails(
-                        individualRoute.stops[individualRoute.stops.length - 1],
+                //if (tmpResult.type === "board") tmpResult.fare = totalFares;
+                tmpResult.to = await getStationDetails(
+                    individualRoute.stops[individualRoute.stops.length - 1],
                     desType,
                 );
                 if (tmpResult.type === "board") {
@@ -256,7 +256,7 @@ exports.getRoute = async function (req, res) {
 
         result.schedule = 0;
         result.total_fares = totalFares;
-        result.fares = [fareResult];
+        result.fares = fareResult;
         result.origin = await getStationDetails(or_station, orType);
         result.destination = await getStationDetails(des_station, desType);
         (result.directions = direction_result), resultArr.push(result);
