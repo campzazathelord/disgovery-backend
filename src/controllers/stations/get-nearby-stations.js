@@ -115,10 +115,15 @@ exports.getNearbyStations = async function (req, res) {
                 },
             );
 
+            let translation = "";
+            if (thStationName[0]) {
+                if (thStationName[0].translation) translation = thStationName[0].translation;
+            }
+
             formattedNearbyStations.push({
                 name: {
                     en: nearbyStations[key].stop_name.trim(),
-                    th: thStationName[0].translation,
+                    th: translation,
                 },
                 id: nearbyStations[key].stop_id,
                 code: nearbyStations[key].stop_code,
