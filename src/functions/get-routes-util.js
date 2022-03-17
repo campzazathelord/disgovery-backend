@@ -33,12 +33,12 @@ exports.calculateFare = async function (origin, destination, fare_options) {
 };
 
 exports.addFares = function (currentFare, fare) {
-    // console.log(currentFare);
     for (const [key, value] of Object.entries(currentFare)) {
         if (key != "currency") {
             currentFare[key] += fare[key];
         }
     }
+
     return currentFare;
 };
 

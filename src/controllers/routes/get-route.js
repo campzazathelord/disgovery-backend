@@ -112,6 +112,12 @@ exports.getRoute = async function (req, res) {
             type: QueryTypes.SELECT,
         },
     );
+    // res.send(routeOfStation)
+    let routeOfStationObj = {}
+    for(let routeObj of routeOfStation){
+        let stationName = routeObj.stop_id
+        routeOfStationObj[stationName] = routeObj
+    }
 
     let tmp = [];
     let realRoutes = [];
@@ -119,13 +125,9 @@ exports.getRoute = async function (req, res) {
         tmp = [];
         avaliableRoutes.pop();
 
-        const haha = avaliableRoutes.map((station) => {
-            let findRoute = routeOfStation.filter((x) => {
-                return x.zone_id == station;
-            });
-
-            tmp.push(...findRoute);
-        });
+        for(let station of avaliableRoutes){
+            tmp.push(routeOfStationObj[station])
+        };
 
         realRoutes.push(tmp);
     }
@@ -147,31 +149,22 @@ exports.getRoute = async function (req, res) {
         totalTime = {};
         //let previousFare = 0;
 
+        let fareResult = [];
+
         for (let j = 0; j < realRoutes[i].length; j++) {
-            // if (j === realRoutes[i].length - 1) {
-            //     lastStationOfRoute = realRoutes[i][j].stop_id;
-            //     totalFares += await calculateFare(firstStationOfRoute, lastStationOfRoute);
-            //     previousFare = 0;
-            // }
-
-            // let fare = await calculateFare(firstStationOfRoute, lastStationOfRoute);
-
-            // if (!fare || j === realRoutes[i].length - 1) {
-            //     firstStationOfRoute = lastStationOfRoute;
-            //     totalFares += previousFare;
-            //     previousFare = 0;
-            // } else {
-            //     lastStationOfRoute = realRoutes[i][j].stop_id;
-            //     previousFare = fare || 0;
-            // }
-
             if (j === realRoutes[i].length - 1) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
                 totalFares = addFares(
-                    await totalFares,
+                    totalFares,
                     await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options),
                 );
-                // {adult: 10 , elder : 20}
+                fareResult.push(
+                    {
+                        from: await getStationDetails(firstStationOfRoute),
+                        to: await getStationDetails(lastStationOfRoute),
+                        fare: await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options)
+                    }
+                )
             }
 
             if (
@@ -181,14 +174,23 @@ exports.getRoute = async function (req, res) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
             } else {
                 totalFares = addFares(
-                    await totalFares,
+                    totalFares,
                     await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options),
                 );
+
+                fareResult.push(
+                    {
+                        from: await getStationDetails(firstStationOfRoute),
+                        to: await getStationDetails(lastStationOfRoute),
+                        fare: await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options)
+                    }
+                )
 
                 firstStationOfRoute = realRoutes[i][j].stop_id;
                 lastStationOfRoute = realRoutes[i][j].stop_id;
                 currentRouteId = realRoutes[i][j].route_id;
             }
+            
         }
 
         //console.log("totalFares=", totalFares);
@@ -197,22 +199,28 @@ exports.getRoute = async function (req, res) {
         let direction_result = [];
         for (let groupedRoute of groupedRoutes) {
             let stopsStationDetails = [];
-            for (let stop of groupedRoute[0].stops) {
-                let detailResult = await getStationDetails(stop, "station");
-                stopsStationDetails.push(detailResult);
-            };
+            
 
-            let line = await Route.findOne({ where: { route_id: groupedRoute[0].line } });
-            for(indivdualRoute of groupedRoute){
-                //console.log("indivdualRoute",indivdualRoute);
+            let line;
+            for(individualRoute of groupedRoute){
+                console.log("individualRoute",individualRoute);
+
+                if(individualRoute.type !== "transfer") line = await Route.findOne({ where: { route_id: individualRoute.line } });
                 let tmpResult = {};
-                tmpResult.type = indivdualRoute.type;
+                tmpResult.type = individualRoute.type;
+                stopsStationDetails = [];
+
+                for (let stop of individualRoute.stops) {
+                    console.log('stop',stop);
+                    let detailResult = await getStationDetails(stop, "station");
+                    stopsStationDetails.push(detailResult);
+                };
 
             //fix type
-                tmpResult.from = await getStationDetails(indivdualRoute.stops[0], orType);
+                tmpResult.from = await getStationDetails(individualRoute.stops[0], orType);
                 if (tmpResult.type === "board") tmpResult.fare = totalFares;
                     tmpResult.to = await getStationDetails(
-                        indivdualRoute.stops[indivdualRoute.stops.length - 1],
+                        individualRoute.stops[individualRoute.stops.length - 1],
                     desType,
                 );
                 if (tmpResult.type === "board") {
@@ -247,7 +255,8 @@ exports.getRoute = async function (req, res) {
         };
 
         result.schedule = 0;
-        result.fares = totalFares;
+        result.total_fares = totalFares;
+        result.fares = [fareResult];
         result.origin = await getStationDetails(or_station, orType);
         result.destination = await getStationDetails(des_station, desType);
         (result.directions = direction_result), resultArr.push(result);
