@@ -12,6 +12,7 @@ const { getTripDetails } = require("../controllers/trips/get-trip-details");
 const { getRoute } = require("../controllers/routes/get-route");
 const { getShape } = require("../controllers/trips/get-shape");
 const { getRoutesFromGoogle } = require("../controllers/routes/get-routes-from-google");
+const { getRoutesAutocomplete } = require("../controllers/autocomplete/routes-autocomplete");
 
 const formUrlEncoded = (x) =>
     Object.keys(x).reduce((p, c) => p + `&${c}=${encodeURIComponent(x[c])}`, "");
@@ -22,12 +23,13 @@ router.get("/getroutes/:id1/:id2", getRoutes);
 router.get("/getfarerates/:id1/:id2", getFareRates);
 
 router.get("/station/nearby", getNearbyStations); // API 1-1
-router.get("/station/id/:uid", getStationDetails); // API 1-2
+router.get("/station/id/:id", getStationDetails); // API 1-2
 router.get("/shape/:route_id", getShape); // API 1-4
 router.get("/trip/:id", getTripDetails); // API 1-5
 
 router.get("/autocomplete/places", getPlacesAutocomplete); // API 2-1
 router.get("/autocomplete/stations", getStationAutocomplete); // API 2-2
+router.get("/autocomplete/lines", getRoutesAutocomplete); //API 2-3
 
 router.post("/route/new", getRoute); // API 3-1
 

@@ -136,8 +136,6 @@ exports.getTripDetails = async function (req, res) {
             i < MAX_DEPARTED_STATIONS && originSequence >= 1;
             i++, originSequence--
         ) {
-            let previousStation = [];
-
             formattedTripDetails.previous = [
                 ...formattedTripDetails.previous,
                 await findOnePreviousStation(
@@ -162,7 +160,6 @@ exports.getTripDetails = async function (req, res) {
     formattedTripDetails.next = [];
 
     try {
-        let nextStations = [];
         let originSequence = formattedTripDetails.origin.sequence;
 
         formattedTripDetails.next = await findAllNextStations(
@@ -195,6 +192,12 @@ async function parseTime(input, maxTime) {
         seconds: 0,
     };
 
+    let splittedMaxTime = {
+        hours: 48,
+        minutes: 0,
+        seconds: 0,
+    };
+
     try {
         const time = input.split(":");
         splittedTime = {
@@ -216,7 +219,7 @@ async function parseTime(input, maxTime) {
             }
 
         if (maxTime.length === 0) {
-            const splittedMaxTime = {
+            splittedMaxTime = {
                 hours: 48,
                 minutes: 0,
                 seconds: 0,
@@ -225,7 +228,7 @@ async function parseTime(input, maxTime) {
             try {
                 const mts = maxTime[0].max_time.split(":");
 
-                const splittedMaxTime = {
+                splittedMaxTime = {
                     hours: parseInt(mts[0]),
                     minutes: parseInt(mts[1]),
                     seconds: parseInt(mts[2]),
@@ -432,7 +435,7 @@ async function findOnePreviousStation(
 ) {
     let queriedPreviousStation = await sequelize.query(
         `
-        select current.stop_sequence as stop_sequence, current_stops.stop_id as stop_id, current_stops.stop_code as stop_code, current_stops.stop_name as stop_name_en, translations.translation as stop_name_th, current_stops.stop_lat, current_stops.stop_lon,
+        select distinct current.stop_sequence as stop_sequence, current_stops.stop_id as stop_id, current_stops.stop_code as stop_code, current_stops.stop_name as stop_name_en, translations.translation as stop_name_th, current_stops.stop_lat, current_stops.stop_lon,
             sec_to_time((time_to_sec(time(current.departure_time)) - (time_to_sec(time('${originDepartureTime}')))) + time_to_sec(time('${timeNowString}')) + 196) as time,
             current.timepoint, current_stops.parent_station
             from (select * from stop_times where stop_sequence='${originSequence}' and trip_id='${tripId}') as current
@@ -471,7 +474,7 @@ async function findAllNextStations(
     let nextStations = [];
     nextStations = await sequelize.query(
         `
-        select current.stop_sequence as stop_sequence, current_stops.stop_id as stop_id, current_stops.stop_code as stop_code, current_stops.stop_name as stop_name_en, translations.translation as stop_name_th, current_stops.stop_lat, current_stops.stop_lon,
+        select distinct current.stop_sequence as stop_sequence, current_stops.stop_id as stop_id, current_stops.stop_code as stop_code, current_stops.stop_name as stop_name_en, translations.translation as stop_name_th, current_stops.stop_lat, current_stops.stop_lon,
             sec_to_time((time_to_sec(time(current.departure_time)) - (time_to_sec(time('${originDepartureTime}')))) + time_to_sec(time('${timeNowString}')) + 196) as time,
             current.timepoint, current_stops.parent_station
             from (select * from stop_times where stop_sequence>='${originSequence}' and trip_id='${tripId}') as current

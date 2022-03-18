@@ -6,12 +6,13 @@ const config = require("./configs/config");
 const { getAllStops } = require("./functions/get-all-stops");
 const { getAdjacency } = require("./functions/get-adjacency");
 const router = require("./routers/routers");
+const cors = require("cors");
 
 checkStructEnv();
 
 const app = express();
-const port = process.env.PORT || 3000;
 
+app.use(cors());
 app.use(express.json());
 app.use(router);
 
