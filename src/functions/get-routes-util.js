@@ -7,6 +7,48 @@ const Stop = require("../models/Stop");
 const dayjs = require("dayjs");
 const { getGTFSFormattedCurrentTime } = require("./get-gtfs-formatted-current-time");
 
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+/**
+ *
+ * @typedef {Object} OriginToDestinationObject
+ * @property {string} origin_id
+ * @property {string} destination_id
+ *
+ * @param {OriginToDestinationObject} arrayOfOriginsToDestinations
+ * @param {Array} fareOptions
+ */
+exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOptions) {
+    let unionFaresString = "";
+    Object.keys(arrayOfOriginsToDestinations).map((key, iteration) => {
+        if (iteration === 0) {
+            unionFaresString += `select origin_id, destination_id, fare_id from fare_rules where origin_id='${arrayOfOriginsToDestinations[key].origin_id}' and destination_id='${arrayOfOriginsToDestinations[key].destination_id}'`;
+        } else {
+            unionFaresString += ` union select origin_id, destination_id, fare_id from fare_rules where origin_id='${arrayOfOriginsToDestinations[key].origin_id}' and destination_id='${arrayOfOriginsToDestinations[key].destination_id}'`;
+        }
+    });
+
+    const allFares = await sequelize.query(
+        `
+        select origin_id, destination_id, fare_id, fare_type, price from (${unionFaresString}) as all_fares natural join fare_attributes;
+        `,
+        {
+            type: QueryTypes.SELECT,
+        },
+    );
+
+    let current;
+    let tempFare = { currency: "THB" };
+
+    Object.keys(allFares).map((key, iteration) => {
+        if (iteration === 0)
+            current = `${allFares[key].origin_id}___${allFares[key].destination_id}`;
+
+        if (current === `${allFares[key].origin_id}___${allFares[key].destination_id}`) {
+        }
+    });
+};
+
 exports.calculateFare = async function (origin, destination, fare_options) {
     const prices = await sequelize.query(
         `
@@ -152,10 +194,7 @@ exports.getStationId = async function (stationArray) {
 // };
 
 exports.groupByRoute = function (realRoutes) {
-    //console.log("groupByRoute_input: ",realRoutes)
-    let firstStation;
-    let lastStation;
-    let currentRoute;
+    let firstStation, lastStation, currentRoute;
     let result = [];
     let subResult = [];
     let superResult = [];
@@ -242,43 +281,48 @@ function isFromStation(originType) {
     return originType === "station";
 }
 
-exports.getNextTrainTime = async function (origin, dest, routeArrivalTime) {
+exports.getNextTrainTime = async function (origin_id, destination_id, routeArrivalTime) {
     //routeArrivalTime and return are in dayjs format
     let now = dayjs();
     let todaysDay = now.day();
-    let timeNowString = await getGTFSFormattedCurrentTime(routeArrivalTime);
+    let routeArrivalTimeString = await getGTFSFormattedCurrentTime(routeArrivalTime);
 
     let trips;
+
+    console.log(origin_id, destination_id, routeArrivalTime.format(), routeArrivalTimeString);
+
     try {
         trips = await sequelize.query(
             `
-            SELECT trip_id,start_time,headway_secs
-            FROM frequencies
-            WHERE trip_id IN (select trips.trip_id from stop_times current
-                                inner join stop_times head on head.stop_sequence=1 and current.trip_id=head.trip_id and current.stop_id='${origin}' and head.stop_id='${dest}'
-                                inner join (select trip_id, stop_id, max(stop_sequence) as max_sequence from stop_times group by trip_id) as destination_sequence on current.trip_id=destination_sequence.trip_id
-                                inner join stop_times destination on destination_sequence.max_sequence=destination.stop_sequence and current.trip_id=destination.trip_id
-                                inner join stops destination_details on destination.stop_id=destination_details.stop_id
-                                inner join trips on current.trip_id = trips.trip_id
-                                inner join calendar on trips.service_id = calendar.service_id and calendar.${WEEKDAYS[todaysDay]} = '1'
-                                inner join routes on trips.route_id = routes.route_id
-                                inner join frequencies on frequencies.trip_id=current.trip_id and time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) < time_to_sec(time(frequencies.end_time)) + frequencies.headway_secs and time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) >= time_to_sec(time(frequencies.start_time)));
+            select trips.trip_id, min(headway_secs * ceiling((time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in from stop_times current
+                inner join stop_times head on head.stop_sequence=1 and current.trip_id=head.trip_id and current.stop_id='${origin_id}'
+                inner join stop_times destination on current.trip_id=destination.trip_id and destination.stop_id='${destination_id}' and destination.stop_sequence>current.stop_sequence
+                inner join stops destination_details on destination.stop_id=destination_details.stop_id
+                inner join trips on current.trip_id = trips.trip_id
+                inner join calendar on trips.service_id = calendar.service_id and calendar.${WEEKDAYS[todaysDay]}='1'
+                inner join routes on trips.route_id = routes.route_id
+                inner join frequencies on frequencies.trip_id=current.trip_id and time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) < time_to_sec(time(frequencies.end_time)) + frequencies.headway_secs and time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) >= time_to_sec(time(frequencies.start_time));
             `,
             {
                 type: QueryTypes.SELECT,
             },
         );
+
+        console.log(trips);
     } catch (error) {
-        logger.error(error);
+        logger.error(`At getNextTrainTime, getting trips: ${error}`);
         trips = [];
     }
     //select closest time then add until pass 'now'
     let lowestDiffTime; //in min
     let lowestTime;
     let headway;
+
     for (trip in trips) {
-        let dayjsTime = toDayJSFormat(trip.start_time);
+        let dayjsTime = dayjs(await toISOString(trip.start_time));
         let time = routeArrivalTime.diff(dayjsTime, "minute");
+        console.log("TimeDiff", time);
+
         if (!lowestDiffTime || lowestDiffTime > time) {
             lowestDiffTime = time;
             lowestTime = dayjsTime;
@@ -337,7 +381,7 @@ exports.getTransferTime = async function (stop1, stop2) {
     return transferTime.min_transfer_time;
 };
 
-async function toDayJSFormat(input) {
+async function toISOString(input) {
     let splittedTime = {
         hours: 0,
         minutes: 0,
@@ -403,6 +447,8 @@ async function toDayJSFormat(input) {
         .add(splittedTime.seconds, "second")
         .format();
 }
+
+exports.toISOString = async (input) => await toISOString(input);
 
 exports.getArrayOfStationDetails = async function (stop_ids) {
     let whereQueryString = "";

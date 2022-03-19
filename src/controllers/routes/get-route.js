@@ -20,6 +20,7 @@ const {
     getNextTrainTime,
     timeBetweenStation,
     getTransferTime,
+    toISOString,
 } = require("../../functions/get-routes-util");
 
 exports.getRoute = async function (req, res) {
@@ -223,7 +224,12 @@ exports.getRoute = async function (req, res) {
         console.log("FORMATTING", performance.now() - now);
 
         now = performance.now();
-        result.schedule = 0;
+
+        result.schedule = getNextTrainTime(
+            or_station,
+            des_station,
+            dayjs(await toISOString("07:30:00")),
+        );
         result.total_fares = totalFares;
         result.fares = fareResult;
         result.directions = direction_result;
@@ -235,6 +241,7 @@ exports.getRoute = async function (req, res) {
         resultArr.push(result);
     }
 
+    // console.log(getNextTrainTime(or_station,des_station,"07:30:00"));
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: resultArr });
 };
 
