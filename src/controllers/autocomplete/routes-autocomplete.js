@@ -40,7 +40,7 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
 
     const routes = await sequelize.query(
         `
-        SELECT route_id, route_type, route_long_name, route_short_name FROM routes;
+        SELECT route_id, route_type, route_long_name, route_short_name, route_color FROM routes;
         `,
         {
             type: QueryTypes.SELECT,
@@ -53,8 +53,12 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
         let newKey = items["route_id"];
         let newValues = items["route_type"];
 
-        let routeNames = items["route_long_name"];
-        routesObj[newKey] = [newValues, routeNames, items["route_short_name"]];
+        let routeLongNames = items["route_long_name"];
+        let routeShortNames = items["route_short_name"];
+
+        let routeColor = items["route_color"];
+
+        routesObj[newKey] = [newValues, routeLongNames, routeShortNames, routeColor];
     }
 
     const dataFuzzy = Fuzzy(routesID, query, 3);
@@ -64,17 +68,16 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
 
         for (let paths of Object.values(stopID)) {
             if (paths["route_id"] == i) {
-
                 let latLong = {
                     lat: paths["stop_lat"],
-                    lng: paths["stop_lon"]
-                }
+                    lng: paths["stop_lon"],
+                };
 
                 tmpArrPathWays.push({
                     id: paths["stop_id"],
                     code: paths["stop_id"].slice(4),
                     name: { en: paths["stop_name"], th: paths["translation"] },
-                    coordinates: latLong
+                    coordinates: latLong,
                 });
             }
         }
@@ -83,7 +86,11 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
             route_id: i,
             stations: tmpArrPathWays,
             type: routesObj[i][0],
-            name: { long_name: routesObj[i][1], short_name: routesObj[i][2] },
+            name: { 
+                long_name: routesObj[i][1], 
+                short_name: routesObj[i][2]
+            },
+            color: routesObj[i][3],
         });
     }
 
