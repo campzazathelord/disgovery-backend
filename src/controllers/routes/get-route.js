@@ -16,13 +16,11 @@ const {
     getStationId,
     groupByRoute,
     getStationDetails,
+    getArrayOfStationDetails,
     getNextTrainTime,
+    timeBetweenStation,
+    getTransferTime,
 } = require("../../functions/get-routes-util");
-const { getGTFSFormattedCurrentTime } = require("../../functions/get-gtfs-formatted-current-time");
-
-const MAX_RADIUS = 30000;
-const RADIUS_STEP = 5000;
-const MAX_NEARBY_STATIONS = 3;
 
 exports.getRoute = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
@@ -60,63 +58,41 @@ exports.getRoute = async function (req, res) {
     let orType = origin[0];
     let desType = destination[0];
 
-    //console.log(or_station, des_station);
-
     if (!or_station || !des_station)
         return res.status(APIStatus.BAD_REQUEST.status).send({
             status: APIStatus.OK.status,
             message: "Unable to find nearby stations from the origin or the destination.",
         });
 
-    let fare_options = req.body.fare_options || "";
+    let fare_options = [];
 
-    let includeAdultFares = true,
-        includeElderFares = false,
-        includeChildFares = false,
-        includeDisabledFares = false;
-
-    if (fare_options.includes("all")) {
-        includeAdultFares = true;
-        includeChildFares = true;
-        includeDisabledFares = true;
-        includeElderFares = true;
-    } else {
-        includeAdultFares = fare_options.includes("adult");
-        includeElderFares = fare_options.includes("elder");
-        includeChildFares = fare_options.includes("child");
-        includeDisabledFares = fare_options.includes("disabled");
+    if (req.body.fare_options) {
+        fare_options = req.body.fare_options.split(",") || [];
     }
-
-    fare_options = {
-        adult: includeAdultFares,
-        elder: includeElderFares,
-        child: includeChildFares,
-        disabled: includeDisabledFares,
-    };
 
     const allRoutes = generateRoute(or_station, des_station);
 
     const routeOfStation = await sequelize.query(
         `
-        SELECT zone_id, stop_ids.stop_id, route_id FROM (
-                SELECT stop_id, route_id
-                FROM ((SELECT trip_id, stop_id
-                    FROM stop_times
-                    GROUP BY stop_id) AS trip_ids
-                INNER JOIN trips
-                ON trips.trip_id = trip_ids.trip_id)
-        ) AS stop_ids
-        INNER JOIN stops ON stops.stop_id=stop_ids.stop_id;
+            SELECT zone_id, stop_ids.stop_id, route_id FROM (
+                    SELECT stop_id, route_id
+                    FROM ((SELECT trip_id, stop_id
+                        FROM stop_times
+                        GROUP BY stop_id) AS trip_ids
+                    INNER JOIN trips
+                    ON trips.trip_id = trip_ids.trip_id)
+            ) AS stop_ids
+            INNER JOIN stops ON stops.stop_id=stop_ids.stop_id;
         `,
         {
             type: QueryTypes.SELECT,
         },
     );
-    // res.send(routeOfStation)
-    let routeOfStationObj = {}
-    for(let routeObj of routeOfStation){
-        let stationName = routeObj.stop_id
-        routeOfStationObj[stationName] = routeObj
+
+    let routeOfStationObj = {};
+    for (let routeObj of routeOfStation) {
+        let stationName = routeObj.stop_id;
+        routeOfStationObj[stationName] = routeObj;
     }
 
     let tmp = [];
@@ -125,46 +101,51 @@ exports.getRoute = async function (req, res) {
         tmp = [];
         avaliableRoutes.pop();
 
-        for(let station of avaliableRoutes){
-            tmp.push(routeOfStationObj[station])
-        };
+        for (let station of avaliableRoutes) {
+            tmp.push(routeOfStationObj[station]);
+        }
 
         realRoutes.push(tmp);
     }
-    //console.log("kaufsdfgsgsdf");
-    //console.log("realRoutes:",realRoutes);
-    //console.log("kaufsdfgsgsdf");
+
     let totalFares = resetTotalFares(fare_options);
-    let result = {};
+    let result;
     let resultArr = [];
     let totalTime = {};
 
     for (let i = 0; i < realRoutes.length; i++) {
-        //console.log(realRoutes[i]);
+        result = {};
 
         let firstStationOfRoute = realRoutes[i][0].stop_id;
         let lastStationOfRoute = realRoutes[i][0].stop_id;
         let currentRouteId = realRoutes[i][0].route_id;
         totalFares = resetTotalFares(fare_options);
         totalTime = {};
-        //let previousFare = 0;
 
         let fareResult = [];
 
+        let now = performance.now();
         for (let j = 0; j < realRoutes[i].length; j++) {
             if (j === realRoutes[i].length - 1) {
-                lastStationOfRoute = realRoutes[i][j].stop_id;
-                totalFares = addFares(
-                    totalFares,
-                    await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options),
+                let fare = await calculateFare(
+                    firstStationOfRoute,
+                    lastStationOfRoute,
+                    fare_options,
                 );
-                fareResult.push(
-                    {
-                        from: await getStationDetails(firstStationOfRoute,'station'),
-                        to: await getStationDetails(lastStationOfRoute,'station'),
-                        fare: await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options)
-                    }
-                )
+
+                lastStationOfRoute = realRoutes[i][j].stop_id;
+                totalFares = addFares(totalFares, fare, fare_options);
+
+                let fromAndToStationsDetail = await getArrayOfStationDetails([
+                    firstStationOfRoute,
+                    lastStationOfRoute,
+                ]);
+
+                fareResult.push({
+                    from: fromAndToStationsDetail[0],
+                    to: fromAndToStationsDetail[1],
+                    fare: fare,
+                });
             }
 
             if (
@@ -173,56 +154,55 @@ exports.getRoute = async function (req, res) {
             ) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
             } else {
-                totalFares = addFares(
-                    totalFares,
-                    await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options),
+                let fare = await calculateFare(
+                    firstStationOfRoute,
+                    lastStationOfRoute,
+                    fare_options,
                 );
 
-                fareResult.push(
-                    {
-                        from: await getStationDetails(firstStationOfRoute,'station'),
-                        to: await getStationDetails(lastStationOfRoute,'station'),
-                        fare: await calculateFare(firstStationOfRoute, lastStationOfRoute, fare_options)
-                    }
-                )
+                totalFares = addFares(totalFares, fare, fare_options);
+
+                let fromAndToStationsDetail = await getArrayOfStationDetails([
+                    firstStationOfRoute,
+                    lastStationOfRoute,
+                ]);
+
+                fareResult.push({
+                    from: fromAndToStationsDetail[0],
+                    to: fromAndToStationsDetail[1],
+                    fare: fare,
+                });
 
                 firstStationOfRoute = realRoutes[i][j].stop_id;
                 lastStationOfRoute = realRoutes[i][j].stop_id;
                 currentRouteId = realRoutes[i][j].route_id;
             }
-            
         }
 
-        //console.log("totalFares=", totalFares);
-        //console.log("realRoutes[i]",realRoutes[i]);
+        console.log("FIND FARES", performance.now() - now);
+
+        now = performance.now();
         groupedRoutes = groupByRoute(realRoutes[i]);
+        console.log("GROUP BY ROUTE", performance.now() - now);
+
         let direction_result = [];
+
+        now = performance.now();
         for (let groupedRoute of groupedRoutes) {
             let stopsStationDetails = [];
-            
-
             let line;
-            for(individualRoute of groupedRoute){
-                console.log("individualRoute",individualRoute);
 
-                if(individualRoute.type !== "transfer") line = await Route.findOne({ where: { route_id: individualRoute.line } });
+            for (individualRoute of groupedRoute) {
+                if (individualRoute.type !== "transfer")
+                    line = await Route.findOne({ where: { route_id: individualRoute.line } });
+
                 let tmpResult = {};
                 tmpResult.type = individualRoute.type;
-                stopsStationDetails = [];
+                stopsStationDetails = await getArrayOfStationDetails(individualRoute.stops);
 
-                for (let stop of individualRoute.stops) {
-                    //console.log('stop',stop);
-                    let detailResult = await getStationDetails(stop, "station");
-                    stopsStationDetails.push(detailResult);
-                };
+                tmpResult.from = stopsStationDetails[0];
+                tmpResult.to = stopsStationDetails[stopsStationDetails.length - 1];
 
-            //fix type
-                tmpResult.from = await getStationDetails(individualRoute.stops[0], orType);
-                //if (tmpResult.type === "board") tmpResult.fare = totalFares;
-                tmpResult.to = await getStationDetails(
-                    individualRoute.stops[individualRoute.stops.length - 1],
-                    desType,
-                );
                 if (tmpResult.type === "board") {
                     tmpResult.via_line = {
                         name: {
@@ -231,38 +211,29 @@ exports.getRoute = async function (req, res) {
                         },
                     };
                     tmpResult.via_line.color = line.route_color;
-                };
-                if (tmpResult.type === "board") {
-                        tmpResult.passing = stopsStationDetails;
-                };
-            //         from: await getStationDetails(groupedRoute[0].stops[0]),
-            //         fare: totalFares,
-            //         to: await getStationDetails(
-            //             groupedRoute[0].stops[groupedRoute[0].stops.length - 1],
-            //         ),
-            //         via_line: {
-            //             name: {
-            //                 short_name: line.route_short_name,
-            //                 long_name: line.route_long_name,
-            //             },
-            //             color: line.route_color,
-            //         },
-            //         passing: stopsStationDetails,
-            //     };
-                direction_result.push(tmpResult);
-            };
-            
-        };
+                }
 
+                if (tmpResult.type === "board") {
+                    tmpResult.passing = stopsStationDetails;
+                }
+
+                direction_result.push(tmpResult);
+            }
+        }
+        console.log("FORMATTING", performance.now() - now);
+
+        now = performance.now();
         result.schedule = 0;
         result.total_fares = totalFares;
         result.fares = fareResult;
-        result.origin = await getStationDetails(or_station, orType);
-        result.destination = await getStationDetails(des_station, desType);
-        (result.directions = direction_result), resultArr.push(result);
-    }
+        result.directions = direction_result;
 
-    //console.log(resultArr);
+        result.origin = direction_result[0].from;
+        result.destination = direction_result[direction_result.length - 1].to;
+        console.log("FINAL FORMATTING", performance.now() - now);
+
+        resultArr.push(result);
+    }
 
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: resultArr });
 };

@@ -7,7 +7,6 @@ const Stop = require("../models/Stop");
 const dayjs = require("dayjs");
 const { getGTFSFormattedCurrentTime } = require("./get-gtfs-formatted-current-time");
 
-
 exports.calculateFare = async function (origin, destination, fare_options) {
     const prices = await sequelize.query(
         `
@@ -21,23 +20,32 @@ exports.calculateFare = async function (origin, destination, fare_options) {
             type: QueryTypes.SELECT,
         },
     );
+
     let fare = { currency: "THB" };
-    for (const [key, value] of Object.entries(fare_options)) {
-        if (value) {
-            for (const price of prices) {
-                if (price && price.fare_type && price.price && price.fare_type.trim() === key)
-                    fare[key] = parseFloat(price.price);
-            }
-        }
+
+    if (fare_options.includes("all") || fare_options.length === 0)
+        Object.keys(prices).map((key) => {
+            fare[prices[key].fare_type] = parseFloat(prices[key].price);
+        });
+    else {
+        Object.keys(prices).map((key) => {
+            if (fare_options.includes(prices[key].fare_type))
+                fare[prices[key].fare_type] = parseFloat(prices[key].price);
+        });
     }
+
     return fare;
 };
 
-exports.addFares = function (currentFare, fare) {
-    for (const [key, value] of Object.entries(currentFare)) {
-        if (key != "currency") {
-            currentFare[key] += fare[key];
-        }
+exports.addFares = function (currentFare, fare, fare_options) {
+    if (fare_options.includes("all") || fare_options.length === 0)
+        Object.keys(currentFare).map((key) => {
+            if (key !== "currency") currentFare[key] += fare[key];
+        });
+    else {
+        Object.keys(currentFare).map((key) => {
+            if (fare_options.includes(key)) currentFare[key] += fare[key];
+        });
     }
 
     return currentFare;
@@ -45,9 +53,17 @@ exports.addFares = function (currentFare, fare) {
 
 exports.resetTotalFares = function (fare_options) {
     let result = { currency: "THB" };
-    for (const [key, value] of Object.entries(fare_options)) {
-        if (fare_options[key]) result[key] = 0;
+    if (fare_options.includes("all") || fare_options.length === 0) {
+        result.adult = 0;
+        result.elder = 0;
+        result.child = 0;
+        result.student = 0;
+    } else {
+        for (let key of fare_options) {
+            result[key] = 0;
+        }
     }
+
     return result;
 };
 
@@ -65,7 +81,7 @@ exports.getStationId = async function (stationArray) {
             for (let r = RADIUS_STEP; r < MAX_RADIUS; r += RADIUS_STEP) {
                 let station = (await getNearby(lat, lng, r, MAX_NEARBY_STATIONS)) || [];
 
-                console.log('found',station);
+                console.log("found", station);
 
                 if (station.length === 0) continue;
                 else return station[0].stop_id;
@@ -192,7 +208,9 @@ exports.getStationDetails = async function (stop_id, type) {
     let th_name = await Translation.findOne({
         where: { record_id: stop_id, table_name: "stops", field_name: "stop_name" },
     });
+
     let tmpStrDetails = { station: {} };
+
     if (isFromStation(type)) {
         tmpStrDetails.station.id = stop_id;
         tmpStrDetails.station.code = stop_code;
@@ -269,6 +287,7 @@ exports.getNextTrainTime = async function (origin, dest, routeArrivalTime) {
             continue;
         }
     }
+
     while (lowestTime.diff(now) >= 0) {
         lowestTime.add(headway, "second");
     }
@@ -384,3 +403,50 @@ async function toDayJSFormat(input) {
         .add(splittedTime.seconds, "second")
         .format();
 }
+
+exports.getArrayOfStationDetails = async function (stop_ids) {
+    let whereQueryString = "";
+    let orderByString = "";
+
+    Object.keys(stop_ids).map((key, iteration) => {
+        if (iteration === 0) {
+            whereQueryString += `stop_id='${stop_ids[key]}' `;
+            orderByString += `'${stop_ids[key]}'`;
+        } else {
+            whereQueryString += `or stop_id='${stop_ids[key]}'`;
+            orderByString += `, '${stop_ids[key]}'`;
+        }
+    });
+
+    let stationDetails = await sequelize.query(
+        `
+            select stop_id, stop_name, stop_name_th, stop_code, stop_lat, stop_lon from (select stop_id, stop_name, stop_code, stop_lat, stop_lon from stops where ${whereQueryString}) as stops
+            natural join (select record_id as stop_id, translation as stop_name_th from translations where field_name='stop_name' and table_name='stops') as translation
+            order by field(stop_id, ${orderByString});
+        `,
+        {
+            type: QueryTypes.SELECT,
+        },
+    );
+
+    let response = [];
+
+    for (let station of stationDetails) {
+        response.push({
+            station: {
+                id: station.stop_id,
+                code: station.stop_code,
+                name: {
+                    en: station.stop_name,
+                    th: station.stop_name_th,
+                },
+            },
+            coordinates: {
+                lat: station.stop_lat,
+                lng: station.stop_lon,
+            },
+        });
+    }
+
+    return response;
+};
