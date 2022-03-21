@@ -21,6 +21,8 @@ const {
     timeBetweenStation,
     getTransferTime,
     toISOString,
+    getArrayOfFares,
+    getTotalFares,
 } = require("../../functions/get-routes-util");
 
 exports.getRoute = async function (req, res) {
@@ -109,7 +111,6 @@ exports.getRoute = async function (req, res) {
         realRoutes.push(tmp);
     }
 
-    let totalFares = resetTotalFares(fare_options);
     let result;
     let resultArr = [];
     let totalTime = {};
@@ -120,33 +121,21 @@ exports.getRoute = async function (req, res) {
         let firstStationOfRoute = realRoutes[i][0].stop_id;
         let lastStationOfRoute = realRoutes[i][0].stop_id;
         let currentRouteId = realRoutes[i][0].route_id;
-        totalFares = resetTotalFares(fare_options);
+        let separateFares,
+            totalFares = {};
         totalTime = {};
 
-        let fareResult = [];
+        let faresToFind = [];
 
         let now = performance.now();
         for (let j = 0; j < realRoutes[i].length; j++) {
             if (j === realRoutes[i].length - 1) {
-                let fare = await calculateFare(
-                    firstStationOfRoute,
-                    lastStationOfRoute,
-                    fare_options,
-                );
+                faresToFind.push({
+                    origin_id: firstStationOfRoute,
+                    destination_id: lastStationOfRoute,
+                });
 
                 lastStationOfRoute = realRoutes[i][j].stop_id;
-                totalFares = addFares(totalFares, fare, fare_options);
-
-                let fromAndToStationsDetail = await getArrayOfStationDetails([
-                    firstStationOfRoute,
-                    lastStationOfRoute,
-                ]);
-
-                fareResult.push({
-                    from: fromAndToStationsDetail[0],
-                    to: fromAndToStationsDetail[1],
-                    fare: fare,
-                });
             }
 
             if (
@@ -155,23 +144,9 @@ exports.getRoute = async function (req, res) {
             ) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
             } else {
-                let fare = await calculateFare(
-                    firstStationOfRoute,
-                    lastStationOfRoute,
-                    fare_options,
-                );
-
-                totalFares = addFares(totalFares, fare, fare_options);
-
-                let fromAndToStationsDetail = await getArrayOfStationDetails([
-                    firstStationOfRoute,
-                    lastStationOfRoute,
-                ]);
-
-                fareResult.push({
-                    from: fromAndToStationsDetail[0],
-                    to: fromAndToStationsDetail[1],
-                    fare: fare,
+                faresToFind.push({
+                    origin_id: firstStationOfRoute,
+                    destination_id: lastStationOfRoute,
                 });
 
                 firstStationOfRoute = realRoutes[i][j].stop_id;
@@ -179,6 +154,12 @@ exports.getRoute = async function (req, res) {
                 currentRouteId = realRoutes[i][j].route_id;
             }
         }
+
+        separateFares = await getArrayOfFares(
+            faresToFind,
+            fare_options.length === 0 ? undefined : fare_options,
+        );
+        totalFares = getTotalFares(separateFares);
 
         console.log("FIND FARES", performance.now() - now);
 
@@ -225,13 +206,14 @@ exports.getRoute = async function (req, res) {
 
         now = performance.now();
 
-        result.schedule = getNextTrainTime(
-            or_station,
-            des_station,
-            dayjs(await toISOString("07:30:00")),
-        );
+        // result.schedule = getNextTrainTime(
+        //     or_station,
+        //     des_station,
+        //     dayjs(await toISOString("07:30:00")),
+        // );
         result.total_fares = totalFares;
-        result.fares = fareResult;
+        // result.fares = fareResult;
+        result.fares = separateFares;
         result.directions = direction_result;
 
         result.origin = direction_result[0].from;

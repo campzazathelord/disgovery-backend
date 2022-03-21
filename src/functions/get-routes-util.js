@@ -15,7 +15,7 @@ const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "frida
  * @property {string} origin_id
  * @property {string} destination_id
  *
- * @param {OriginToDestinationObject} arrayOfOriginsToDestinations
+ * @param {OriginToDestinationObject[]} arrayOfOriginsToDestinations
  * @param {Array} fareOptions
  */
 exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOptions) {
@@ -37,16 +37,96 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
         },
     );
 
-    let current;
-    let tempFare = { currency: "THB" };
+    let allStations = [];
 
-    Object.keys(allFares).map((key, iteration) => {
-        if (iteration === 0)
-            current = `${allFares[key].origin_id}___${allFares[key].destination_id}`;
+    Object.keys(arrayOfOriginsToDestinations).map((key) => {
+        if (!allStations.includes(arrayOfOriginsToDestinations[key].origin_id))
+            allStations.push(arrayOfOriginsToDestinations[key].origin_id);
+        if (!allStations.includes(arrayOfOriginsToDestinations[key].destination_id))
+            allStations.push(arrayOfOriginsToDestinations[key].destination_id);
+    });
 
-        if (current === `${allFares[key].origin_id}___${allFares[key].destination_id}`) {
+    const allStationsDetails = await getArrayOfStationDetails(allStations);
+    const allStationsDetailsObject = {};
+
+    Object.keys(allStationsDetails).map((key) => {
+        allStationsDetailsObject[allStationsDetails[key].station.id] = allStationsDetails[key];
+    });
+
+    console.log(allStationsDetailsObject);
+
+    let currentOrigin = "",
+        currentDestination = "";
+    let currentFare = { currency: "THB" };
+    let faresAdded = [];
+    let response = [];
+
+    Object.keys(allFares).map((key) => {
+        if (faresAdded.includes(`${allFares[key].origin_id}___${allFares[key].destination_id}`)) {
+            if (
+                (Array.isArray(fareOptions) && fareOptions.includes(allFares[key].fare_type)) ||
+                !Array.isArray(fareOptions)
+            ) {
+                let price = parseFloat(allFares[key].price);
+                if (!isNaN(price) || price)
+                    currentFare[allFares[key].fare_type] = parseFloat(allFares[key].price);
+            }
+        } else {
+            if (currentOrigin && currentDestination) {
+                response.push({
+                    from: allStationsDetailsObject[currentOrigin],
+                    to: allStationsDetailsObject[currentDestination],
+                    fare: currentFare,
+                });
+            }
+
+            currentOrigin = allFares[key].origin_id;
+            currentDestination = allFares[key].destination_id;
+            currentFare = {
+                currency: "THB",
+            };
+
+            faresAdded.push(`${allFares[key].origin_id}___${allFares[key].destination_id}`);
+
+            if (
+                (Array.isArray(fareOptions) && fareOptions.includes(allFares[key].fare_type)) ||
+                !Array.isArray(fareOptions)
+            ) {
+                let price = parseFloat(allFares[key].price);
+                if (!isNaN(price) || price)
+                    currentFare[allFares[key].fare_type] = parseFloat(allFares[key].price);
+            }
         }
     });
+
+    if (currentOrigin && currentDestination) {
+        response.push({
+            from: allStationsDetailsObject[currentOrigin],
+            to: allStationsDetailsObject[currentDestination],
+            fare: currentFare,
+        });
+    }
+
+    return response;
+};
+
+exports.getTotalFares = function (allFares) {
+    let totalFares = {};
+
+    Object.keys(allFares).map((allFaresKey, iteration) => {
+        if (iteration === 0) {
+            totalFares = JSON.parse(JSON.stringify(allFares[allFaresKey].fare));
+        } else {
+            Object.keys(totalFares).map((totalFaresKey) => {
+                if (totalFaresKey !== "currency") {
+                    totalFares[totalFaresKey] =
+                        totalFares[totalFaresKey] + allFares[allFaresKey].fare[totalFaresKey];
+                }
+            });
+        }
+    });
+
+    return totalFares;
 };
 
 exports.calculateFare = async function (origin, destination, fare_options) {
@@ -450,7 +530,7 @@ async function toISOString(input) {
 
 exports.toISOString = async (input) => await toISOString(input);
 
-exports.getArrayOfStationDetails = async function (stop_ids) {
+async function getArrayOfStationDetails(stop_ids) {
     let whereQueryString = "";
     let orderByString = "";
 
@@ -495,4 +575,6 @@ exports.getArrayOfStationDetails = async function (stop_ids) {
     }
 
     return response;
-};
+}
+
+exports.getArrayOfStationDetails = async (stop_ids) => await getArrayOfStationDetails(stop_ids);
