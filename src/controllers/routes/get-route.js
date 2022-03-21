@@ -128,19 +128,20 @@ exports.getRoute = async function (req, res) {
         let faresToFind = [];
 
         let now = performance.now();
+        
         for (let j = 0; j < realRoutes[i].length; j++) {
             if (j === realRoutes[i].length - 1) {
+                lastStationOfRoute = realRoutes[i][j].stop_id;
+
                 faresToFind.push({
                     origin_id: firstStationOfRoute,
                     destination_id: lastStationOfRoute,
                 });
-
-                lastStationOfRoute = realRoutes[i][j].stop_id;
             }
 
             if (
                 realRoutes[i][j].route_id === currentRouteId ||
-                jointFareRules[realRoutes[i][j].route_id].includes(currentRouteId)
+                (jointFareRules[realRoutes[i][j].route_id] && jointFareRules[realRoutes[i][j].route_id].includes(currentRouteId))
             ) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
             } else {
@@ -166,13 +167,16 @@ exports.getRoute = async function (req, res) {
         now = performance.now();
         groupedRoutes = groupByRoute(realRoutes[i]);
         console.log("GROUP BY ROUTE", performance.now() - now);
-
         let direction_result = [];
 
         now = performance.now();
         for (let groupedRoute of groupedRoutes) {
             let stopsStationDetails = [];
             let line;
+            console.log("groupedRoute",groupedRoute);
+
+            let routeArrivalTime = dayjs().add(1,"minute");
+            let totalDuration = 0;
 
             for (individualRoute of groupedRoute) {
                 if (individualRoute.type !== "transfer")
@@ -184,7 +188,6 @@ exports.getRoute = async function (req, res) {
 
                 tmpResult.from = stopsStationDetails[0];
                 tmpResult.to = stopsStationDetails[stopsStationDetails.length - 1];
-
                 if (tmpResult.type === "board") {
                     tmpResult.via_line = {
                         name: {
@@ -199,7 +202,36 @@ exports.getRoute = async function (req, res) {
                     tmpResult.passing = stopsStationDetails;
                 }
 
+
+                //schedule implementation
+                tmpResult.schedule = {};
+                tmpResult.schedule.departing_at = routeArrivalTime.format();
+                let stopsArr = individualRoute.stops;
+                //console.log(individualRoute.stops);
+                let duration;
+                if (individualRoute.type === 'board'){
+                    let waitTime = await getNextTrainTime(stopsArr[0],stopsArr[stopsArr.length-1],routeArrivalTime);
+                    let lineDuration = await timeBetweenStation(stopsArr[0],stopsArr[stopsArr.length-1]);
+                    duration = waitTime + lineDuration;
+                    totalDuration += duration;
+                console.log(duration, "duration")
+
+
+                } else if (individualRoute.type === 'transfer'){
+                    let transferDuration = await getTransferTime(stopsArr[0],stopsArr[1]);
+                    totalDuration += transferDuration;
+                    duration = transferDuration;
+                console.log(duration, "duration")
+
+                };
+
+
+                routeArrivalTime = routeArrivalTime.add(duration,"second")
+                tmpResult.schedule.arriving_at = routeArrivalTime.format();
+                tmpResult.schedule.duration = duration;
+                
                 direction_result.push(tmpResult);
+                    
             }
         }
         console.log("FORMATTING", performance.now() - now);
@@ -235,7 +267,7 @@ totaltime = {
 };
 
 routeArrivalTime = now
-for transfers
+for in
     nextTrainTime = getNextTrainTime(stop_id,routeArrivalTime)
     
     waitTime = nextTrainTime - routeArrivalTime

@@ -286,16 +286,12 @@ exports.groupByRoute = function (realRoutes) {
     for (let j = 1; j < realRoutes.length; j++) {
         //iterate through each stops in each path
         subResult.push(lastStation); //push stop to subResult
-        //console.log("pathNo:",i,"Add:",lastStation);
         if (currentRoute === realRoutes[j].route_id) {
-            //if route_id of the current stop matches with lastStation
             lastStation = realRoutes[j].stop_id;
-            //console.log("ADD: ",lastStation);
             if (j === realRoutes.length - 1) {
                 // if last node of path
                 subResult.push(lastStation); //push last node
                 result.push({ stops: subResult, type: "board", line: currentRoute });
-                //console.log("pathNo:",i,"AddLAST:",lastStation);
             }
         } else {
             // currentRoute != current node route_id
@@ -308,10 +304,8 @@ exports.groupByRoute = function (realRoutes) {
             firstStation = realRoutes[j].stop_id; //reset
             lastStation = realRoutes[j].stop_id; //reset
             currentRoute = realRoutes[j].route_id; //set to the current route_id
-            //console.log("pathNo:",i,"Changed currentRoute to:",currentRoute);
         }
     }
-    //console.log("groupByRoute - pathNo:",i,"Path of:",realRoutes[i], "Result:",result);
     superResult.push(result); //agregate everything
     //result = []; //reset
 
@@ -394,29 +388,25 @@ exports.getNextTrainTime = async function (origin_id, destination_id, routeArriv
         trips = [];
     }
     //select closest time then add until pass 'now'
-    let lowestDiffTime; //in min
-    let lowestTime;
-    let headway;
+    // let lowestDiffTime; //in min
+    // let lowestTime;
+    // let headway;
 
-    for (trip in trips) {
-        let dayjsTime = dayjs(await toISOString(trip.start_time));
-        let time = routeArrivalTime.diff(dayjsTime, "minute");
-        console.log("TimeDiff", time);
+    // for (trip in trips) {
+    //     let dayjsTime = dayjs(await toISOString(trip.start_time));
+    //     let time = routeArrivalTime.diff(dayjsTime, "minute");
+    //     console.log("TimeDiff", time);
 
-        if (!lowestDiffTime || lowestDiffTime > time) {
-            lowestDiffTime = time;
-            lowestTime = dayjsTime;
-            headway = trip.headway;
-        } else {
-            continue;
-        }
-    }
+    //     if (!lowestDiffTime || lowestDiffTime > time) {
+    //         lowestDiffTime = time;
+    //         lowestTime = dayjsTime;
+    //         headway = trip.headway;
+    //     } else {
+    //         continue;
+    //     }
+    // }
 
-    while (lowestTime.diff(now) >= 0) {
-        lowestTime.add(headway, "second");
-    }
-
-    return lowestTime;
+    return parseFloat(trips[0].arriving_in);
 };
 
 exports.timeBetweenStation = async function (stop1, stop2) {
@@ -442,9 +432,11 @@ exports.timeBetweenStation = async function (stop1, stop2) {
         `,
         {
             type: QueryTypes.SELECT,
-        },
+        }, 
     );
-    return timeBtwStation.timeInSec;
+        console.log(stop1, stop2, timeBtwStation, "-------")
+
+    return parseFloat(timeBtwStation[0].timeInSec);
 };
 
 exports.getTransferTime = async function (stop1, stop2) {
