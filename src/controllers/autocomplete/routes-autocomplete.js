@@ -1,10 +1,8 @@
-const Stop = require("../../models/Stop");
 const APIStatus = require("../../configs/api-errors");
 const { logger } = require("../../configs/config");
 const sequelize = require("../../db/database");
-const Fuse = require("fuse.js");
-const { Op, QueryTypes } = require("sequelize");
-const Fuzzy = require("../../functions/Fuzzy");
+const { QueryTypes } = require("sequelize");
+const Fuzzy = require("../../functions/fuzzy-search");
 
 exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
@@ -64,17 +62,16 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
 
         for (let paths of Object.values(stopID)) {
             if (paths["route_id"] == i) {
-
                 let latLong = {
                     lat: paths["stop_lat"],
-                    lng: paths["stop_lon"]
-                }
+                    lng: paths["stop_lon"],
+                };
 
                 tmpArrPathWays.push({
                     id: paths["stop_id"],
                     code: paths["stop_id"].slice(4),
                     name: { en: paths["stop_name"], th: paths["translation"] },
-                    coordinates: latLong
+                    coordinates: latLong,
                 });
             }
         }

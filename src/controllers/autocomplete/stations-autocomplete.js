@@ -1,11 +1,8 @@
-const Stop = require("../../models/Stop");
-const Fuzzy = require("../../functions/Fuzzy");
-const StationDetails = require("../../functions/StationDetails");
 const APIStatus = require("../../configs/api-errors");
 const { logger } = require("../../configs/config");
 const sequelize = require("../../db/database");
 const Fuse = require("fuse.js");
-const { Op, QueryTypes } = require("sequelize");
+const { QueryTypes } = require("sequelize");
 
 exports.getStationAutocomplete = async function getStationAutocomplete(req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
