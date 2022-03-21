@@ -163,56 +163,6 @@ exports.getStationId = async function (stationArray) {
     return "";
 };
 
-// exports.groupByRoute = function (realRoutes) {
-//     //console.log("groupByRoute_input: ",realRoutes)
-//     let firstStation;
-//     let lastStation;
-//     let currentRoute;
-//     let result = [];
-//     let subResult = [];
-//     let superResult = [];
-//     for (let i = 0; i < realRoutes.length; i++) {
-//         //iterate through each path generated from algorithm
-//         firstStation = realRoutes[i][0].stop_id; //stop_id of the first station in path[i]
-//         lastStation = realRoutes[i][0].stop_id;
-//         currentRoute = realRoutes[i][0].route_id; //set currentRoute to route_id of first station
-
-//         for (let j = 1; j < realRoutes[i].length; j++) {
-//             //iterate through each stops in each path
-//             subResult.push(lastStation); //push stop to subResult
-//             //console.log("pathNo:",i,"Add:",lastStation);
-//             if (currentRoute === realRoutes[i][j].route_id) {
-//                 //if route_id of the current stop matches with lastStation
-//                 lastStation = realRoutes[i][j].stop_id;
-//                 //console.log("ADD: ",lastStation);
-//                 if (j === realRoutes[i].length - 1) {
-//                     // if last node of path
-//                     subResult.push(lastStation); //push last node
-//                     result.push({ stops: subResult, type: "board" });
-//                     //console.log("pathNo:",i,"AddLAST:",lastStation);
-//                 }
-//             } else {
-//                 // currentRoute != current node route_id
-//                 result.push({ stops: subResult, type: "board" }); //push all the stops type board
-//                 result.push({
-//                     stops: [realRoutes[i][j - 1].stop_id, realRoutes[i][j].stop_id],
-//                     type: "transfer",
-//                 }); //push transfer nodes
-//                 subResult = []; //reset
-//                 firstStation = realRoutes[i][j].stop_id; //reset
-//                 lastStation = realRoutes[i][j].stop_id; //reset
-//                 currentRoute = realRoutes[i][j].route_id; //set to the current route_id
-//                 //console.log("pathNo:",i,"Changed currentRoute to:",currentRoute);
-//             }
-//         }
-//         //console.log("groupByRoute - pathNo:",i,"Path of:",realRoutes[i], "Result:",result);
-//         superResult.push(result); //agregate everything
-//         result = []; //reset
-//     }
-//     logger.info(superResult);
-//     return superResult;
-// };
-
 exports.groupByRoute = function (realRoutes) {
     let firstStation, lastStation, currentRoute;
     let result = [];
@@ -295,8 +245,16 @@ function isFromStation(originType) {
     return originType === "station";
 }
 
+/**
+ *
+ *
+ * @param {string} origin_id
+ * @param {string} destination_id
+ * @param {dayjs} routeArrivalTime
+ * @returns {number} arriving_in
+ * @returns {string} trip_id
+ */
 exports.getNextTrainTime = async function (origin_id, destination_id, routeArrivalTime) {
-    //routeArrivalTime and return are in dayjs format
     let now = dayjs();
     let todaysDay = now.day();
     let routeArrivalTimeString = await getGTFSFormattedCurrentTime(routeArrivalTime);
@@ -308,17 +266,20 @@ exports.getNextTrainTime = async function (origin_id, destination_id, routeArriv
     try {
         trips = await sequelize.query(
             `
-            select trips.trip_id, min(headway_secs * ceiling((time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in from stop_times current
+            select trips.trip_id, (headway_secs * ceiling((time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in from stop_times current
                 inner join stop_times head on head.stop_sequence=1 and current.trip_id=head.trip_id and current.stop_id='${origin_id}'
                 inner join stop_times destination on current.trip_id=destination.trip_id and destination.stop_id='${destination_id}' and destination.stop_sequence>current.stop_sequence
                 inner join stops destination_details on destination.stop_id=destination_details.stop_id
                 inner join trips on current.trip_id = trips.trip_id
                 inner join calendar on trips.service_id = calendar.service_id and calendar.${WEEKDAYS[todaysDay]}='1'
                 inner join routes on trips.route_id = routes.route_id
-                inner join frequencies on frequencies.trip_id=current.trip_id and time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) < time_to_sec(time(frequencies.end_time)) + frequencies.headway_secs and time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) >= time_to_sec(time(frequencies.start_time));
+                inner join frequencies on frequencies.trip_id=current.trip_id and time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) < time_to_sec(time(frequencies.end_time)) + frequencies.headway_secs and time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) >= time_to_sec(time(frequencies.start_time))
+                order by arriving_in asc
+                limit 1;    
             `,
             {
                 type: QueryTypes.SELECT,
+                maxResult: 1,
             },
         );
 
@@ -327,56 +288,25 @@ exports.getNextTrainTime = async function (origin_id, destination_id, routeArriv
         logger.error(`At getNextTrainTime, getting trips: ${error}`);
         trips = [];
     }
-    //select closest time then add until pass 'now'
-    // let lowestDiffTime; //in min
-    // let lowestTime;
-    // let headway;
 
-    // for (trip in trips) {
-    //     let dayjsTime = dayjs(await toISOString(trip.start_time));
-    //     let time = routeArrivalTime.diff(dayjsTime, "minute");
-    //     console.log("TimeDiff", time);
-
-    //     if (!lowestDiffTime || lowestDiffTime > time) {
-    //         lowestDiffTime = time;
-    //         lowestTime = dayjsTime;
-    //         headway = trip.headway;
-    //     } else {
-    //         continue;
-    //     }
-    // }
-
-    return parseFloat(trips[0].arriving_in);
+    return { waitTime: parseFloat(trips[0].arriving_in), tripId: trips[0].trip_id };
 };
 
-exports.timeBetweenStation = async function (stop1, stop2) {
+exports.timeBetweenStation = async function (stop1, stop2, tripId) {
     const timeBtwStation = await sequelize.query(
         `
-        SELECT trip_id,fromStopID,toStopID,timeInSec
-        FROM (SELECT route_id, trip_id ,fromStopID,stop_id AS toStopID , (timeInSec - prevTimeInSec) AS timeInSec, stop_sequence
-        FROM    (SELECT route_id, stop_times.trip_id AS trip_id, stop_id, TIME_TO_SEC(arrival_time) AS timeInSec,
-                    LAG(TIME_TO_SEC(arrival_time)) OVER (PARTITION BY route_id ORDER BY stop_sequence) AS prevTimeInSec,
-                    LAG(stop_id) OVER (PARTITION BY route_id ORDER BY stop_sequence) AS fromStopID, stop_sequence
-                FROM (  SELECT trip_id, route_id, maxStopSequence
-                        FROM (  SELECT trips.trip_id, route_id , maxStopSequence, ROW_NUMBER() over (PARTITION BY route_id ORDER BY maxStopSequence DESC ) AS rowNumber
-                                FROM (  SELECT trip_id, MAX(stop_sequence) AS maxStopSequence
-                                        FROM stop_times
-                                        GROUP BY trip_id) AS trip_id_maxstopseq
-                                INNER JOIN trips
-                                ON trips.trip_id = trip_id_maxstopseq.trip_id) AS trips_route_maxstopseq
-                        WHERE rowNumber = 1) AS trip_route_maxstopseq
-                INNER JOIN stop_times
-                ON trip_route_maxstopseq.trip_id = stop_times.trip_id) AS all_stops_with_time
-        ORDER BY trip_id,stop_sequence) AS timeBtwEachSuccesiveStop
-        WHERE fromStopID = '${stop1}' and toStopID = '${stop2}';
+        select abs(time_to_sec(time(first_stop_arrival_time)) - time_to_sec(time(second_stop_arrival_time))) as boarding_time from
+            (select * from (select arrival_time as first_stop_arrival_time from stop_times where trip_id='${tripId}' and stop_id='${stop1}') as first_stop
+                join (select arrival_time as second_stop_arrival_time from stop_times where trip_id='${tripId}' and stop_id='${stop2}') as second_stop) as two_stops;
         `,
         {
             type: QueryTypes.SELECT,
+            maxResult: 1,
         },
     );
     console.log(stop1, stop2, timeBtwStation, "-------");
 
-    return parseFloat(timeBtwStation[0].timeInSec);
+    return parseFloat(timeBtwStation[0].boarding_time);
 };
 
 exports.getTransferTime = async function (stop1, stop2) {
@@ -388,9 +318,10 @@ exports.getTransferTime = async function (stop1, stop2) {
         `,
         {
             type: QueryTypes.SELECT,
+            maxResult: 1,
         },
     );
-    return transferTime.min_transfer_time;
+    return transferTime[0].min_transfer_time;
 };
 
 async function toISOString(input) {
