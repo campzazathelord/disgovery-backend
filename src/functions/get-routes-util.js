@@ -129,66 +129,6 @@ exports.getTotalFares = function (allFares) {
     return totalFares;
 };
 
-exports.calculateFare = async function (origin, destination, fare_options) {
-    const prices = await sequelize.query(
-        `
-        SELECT fare_type,price
-        FROM fare_attributes
-        WHERE fare_id = (SELECT fare_id
-                        FROM fare_rules
-                        WHERE origin_id = '${origin}' and destination_id = '${destination}');
-        `,
-        {
-            type: QueryTypes.SELECT,
-        },
-    );
-
-    let fare = { currency: "THB" };
-
-    if (fare_options.includes("all") || fare_options.length === 0)
-        Object.keys(prices).map((key) => {
-            fare[prices[key].fare_type] = parseFloat(prices[key].price);
-        });
-    else {
-        Object.keys(prices).map((key) => {
-            if (fare_options.includes(prices[key].fare_type))
-                fare[prices[key].fare_type] = parseFloat(prices[key].price);
-        });
-    }
-
-    return fare;
-};
-
-exports.addFares = function (currentFare, fare, fare_options) {
-    if (fare_options.includes("all") || fare_options.length === 0)
-        Object.keys(currentFare).map((key) => {
-            if (key !== "currency") currentFare[key] += fare[key];
-        });
-    else {
-        Object.keys(currentFare).map((key) => {
-            if (fare_options.includes(key)) currentFare[key] += fare[key];
-        });
-    }
-
-    return currentFare;
-};
-
-exports.resetTotalFares = function (fare_options) {
-    let result = { currency: "THB" };
-    if (fare_options.includes("all") || fare_options.length === 0) {
-        result.adult = 0;
-        result.elder = 0;
-        result.child = 0;
-        result.student = 0;
-    } else {
-        for (let key of fare_options) {
-            result[key] = 0;
-        }
-    }
-
-    return result;
-};
-
 exports.getStationId = async function (stationArray) {
     const RADIUS_STEP = 5000;
     const MAX_RADIUS = 30000;
@@ -432,9 +372,9 @@ exports.timeBetweenStation = async function (stop1, stop2) {
         `,
         {
             type: QueryTypes.SELECT,
-        }, 
+        },
     );
-        console.log(stop1, stop2, timeBtwStation, "-------")
+    console.log(stop1, stop2, timeBtwStation, "-------");
 
     return parseFloat(timeBtwStation[0].timeInSec);
 };
