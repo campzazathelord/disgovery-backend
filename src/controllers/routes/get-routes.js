@@ -75,7 +75,7 @@ exports.getRoutes = async function (req, res) {
         else fare_options = req.body.fare_options.split(",") || [];
     }
 
-    const allRoutes = generateRoute(or_station, des_station);
+    const allRoutes = await generateRoute(or_station, des_station);
 
     const routeOfStation = await sequelize.query(
         `
