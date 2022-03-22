@@ -36,7 +36,7 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
             type: QueryTypes.SELECT,
         },
     );
-
+    
     let allStations = [];
 
     Object.keys(arrayOfOriginsToDestinations).map((key) => {

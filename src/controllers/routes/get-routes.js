@@ -67,10 +67,12 @@ exports.getRoutes = async function (req, res) {
             message: "Unable to find nearby stations from the origin or the destination.",
         });
 
-    let fare_options = [];
+    let fare_options = ["adult"];
 
     if (req.body.fare_options) {
-        fare_options = req.body.fare_options.split(",") || [];
+        if (req.body.fare_options === "all")
+            fare_options = ["adult", "elder", "child", "disabled", "student"];
+        else fare_options = req.body.fare_options.split(",") || [];
     }
 
     const allRoutes = generateRoute(or_station, des_station);
@@ -113,7 +115,6 @@ exports.getRoutes = async function (req, res) {
 
     let result;
     let resultArr = [];
-    let totalTime = {};
     let breakToMainLoop = false;
 
     for (let i = 0; i < realRoutes.length; i++) {
@@ -131,7 +132,6 @@ exports.getRoutes = async function (req, res) {
             console.log("groupedRoute", groupedRoute);
 
             let routeArrivalTime = dayjs().add(1, "minute");
-            let totalDuration = 0;
 
             for (individualRoute of groupedRoute) {
                 if (individualRoute.type !== "transfer")
@@ -181,7 +181,6 @@ exports.getRoutes = async function (req, res) {
                         );
 
                         duration = waitTime + lineDuration;
-                        totalDuration += duration;
                     } catch (error) {
                         logger.error(
                             `No routes from ${stopsArr[0]} to ${
@@ -194,7 +193,6 @@ exports.getRoutes = async function (req, res) {
                     // console.log(duration, "duration");
                 } else if (individualRoute.type === "transfer") {
                     let transferDuration = await getTransferTime(stopsArr[0], stopsArr[1]);
-                    totalDuration += transferDuration;
                     duration = transferDuration;
                     // console.log(duration, "duration");
                 }
@@ -223,8 +221,6 @@ exports.getRoutes = async function (req, res) {
         let currentRouteId = realRoutes[i][0].route_id;
         let separateFares,
             totalFares = {};
-        totalTime = {};
-
         let faresToFind = [];
 
         for (let j = 0; j < realRoutes[i].length; j++) {
@@ -265,11 +261,6 @@ exports.getRoutes = async function (req, res) {
 
         now = performance.now();
 
-        // result.schedule = getNextTrainTime(
-        //     or_station,
-        //     des_station,
-        //     dayjs(await toISOString("07:30:00")),
-        // );
         let overallDepartingTime = direction_result[0].schedule.departing_at;
         let overallArrivingTime =
             direction_result[direction_result.length - 1].schedule.arriving_at;
@@ -282,10 +273,8 @@ exports.getRoutes = async function (req, res) {
               }
             : undefined;
         result.total_fares = totalFares;
-        // result.fares = fareResult;
         result.fares = separateFares;
         result.directions = direction_result;
-
         result.origin = direction_result[0].from;
         result.destination = direction_result[direction_result.length - 1].to;
         console.log("FINAL FORMATTING", performance.now() - now);
@@ -293,31 +282,5 @@ exports.getRoutes = async function (req, res) {
         resultArr.push(result);
     }
 
-    // console.log(getNextTrainTime(or_station,des_station,"07:30:00"));
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: resultArr });
 };
-
-/*MAIN SCHEDULE
-totaltime = {
-    depart : now,
-    arrival : ???,
-    duration : 0, 
-};
-
-routeArrivalTime = now
-for in
-    nextTrainTime = getNextTrainTime(stop_id,routeArrivalTime)
-    
-    waitTime = nextTrainTime - routeArrivalTime
-    
-    duration += waitTime
-    duration += transferTime*
-    for stations
-        if i===1 continue
-        time = getTime(station[i],station[i-1])
-        duration += time
-
-    routeArrivalTime = now+duration    
-
-arrival = depart.add(duration)
-*/
