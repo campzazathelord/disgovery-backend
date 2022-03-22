@@ -36,7 +36,7 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
             type: QueryTypes.SELECT,
         },
     );
-    
+
     let allStations = [];
 
     Object.keys(arrayOfOriginsToDestinations).map((key) => {
@@ -52,8 +52,6 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
     Object.keys(allStationsDetails).map((key) => {
         allStationsDetailsObject[allStationsDetails[key].station.id] = allStationsDetails[key];
     });
-
-    console.log(allStationsDetailsObject);
 
     let currentOrigin = "",
         currentDestination = "";
@@ -129,10 +127,11 @@ exports.getTotalFares = function (allFares) {
     return totalFares;
 };
 
-exports.getStationId = async function (stationArray) {
+exports.getNearbyStations = async function (stationArray) {
     const RADIUS_STEP = 5000;
     const MAX_RADIUS = 30000;
     const MAX_NEARBY_STATIONS = 3;
+    let result = [];
     if (stationArray[0] === "coordinates") {
         let coordinates = stationArray[1].split(",");
         let lat = coordinates[0];
@@ -141,12 +140,17 @@ exports.getStationId = async function (stationArray) {
 
         try {
             for (let r = RADIUS_STEP; r < MAX_RADIUS; r += RADIUS_STEP) {
-                let station = (await getNearby(lat, lng, r, MAX_NEARBY_STATIONS)) || [];
+                let stations = (await getNearby(lat, lng, r, MAX_NEARBY_STATIONS)) || [];
 
-                console.log("found", station);
+                console.log("found", stations);
 
-                if (station.length === 0) continue;
-                else return station[0].stop_id;
+                if (stations.length === 0) continue;
+                else {
+                    for (let station of stations) {
+                        result.push(station.stop_id);
+                    }
+                    return result;
+                }
             }
         } catch (error) {
             logger.error(error);
@@ -155,12 +159,12 @@ exports.getStationId = async function (stationArray) {
     } else if (stationArray[0] === "station") {
         let station = stationArray[1];
         logger.info(station);
-        return station;
+        return [station];
     } // else if (stationArray[0] === "google") {
     //  let google = stationArray[1];
     // logger.info(or_google);
     //}
-    return "";
+    return [];
 };
 
 exports.groupByRoute = function (realRoutes) {
@@ -259,9 +263,7 @@ exports.getNextTrainTime = async function (origin_id, destination_id, routeArriv
     let todaysDay = now.day();
     let routeArrivalTimeString = await getGTFSFormattedCurrentTime(routeArrivalTime);
 
-    let trips;
-
-    console.log(origin_id, destination_id, routeArrivalTime.format(), routeArrivalTimeString);
+    let trips = [];
 
     try {
         trips = await sequelize.query(
@@ -283,10 +285,17 @@ exports.getNextTrainTime = async function (origin_id, destination_id, routeArriv
             },
         );
 
-        console.log(trips);
+        console.log(
+            "trips:",
+            trips,
+            origin_id,
+            "=>",
+            destination_id,
+            routeArrivalTime.format(),
+            routeArrivalTimeString,
+        );
     } catch (error) {
         logger.error(`At getNextTrainTime, getting trips: ${error}`);
-        trips = [];
     }
 
     return { waitTime: parseFloat(trips[0].arriving_in), tripId: trips[0].trip_id };
@@ -304,7 +313,6 @@ exports.timeBetweenStation = async function (stop1, stop2, tripId) {
             maxResult: 1,
         },
     );
-    console.log(stop1, stop2, timeBtwStation, "-------");
 
     return parseFloat(timeBtwStation[0].boarding_time);
 };
@@ -321,7 +329,9 @@ exports.getTransferTime = async function (stop1, stop2) {
             maxResult: 1,
         },
     );
-    return transferTime[0].min_transfer_time;
+
+    if (transferTime[0]) return transferTime[0].min_transfer_time || 0;
+    else return 0;
 };
 
 async function toISOString(input) {
