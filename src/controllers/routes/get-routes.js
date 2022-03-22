@@ -92,7 +92,7 @@ exports.getRoutes = async function (req, res) {
 };
 
 async function getRoutes(originId, destinationId, fare_options) {
-    const allRoutes = generateRoute(originId, destinationId);
+    const allRoutes = await generateRoute(originId, destinationId);
 
     const routeOfStation = await sequelize.query(
         `
