@@ -136,13 +136,10 @@ exports.getNearbyStations = async function (stationArray) {
         let coordinates = stationArray[1].split(",");
         let lat = coordinates[0];
         let lng = coordinates[1];
-        logger.info(lat + " " + lng);
 
         try {
             for (let r = RADIUS_STEP; r < MAX_RADIUS; r += RADIUS_STEP) {
                 let stations = (await getNearby(lat, lng, r, MAX_NEARBY_STATIONS)) || [];
-
-                console.log("found", stations);
 
                 if (stations.length === 0) continue;
                 else {
@@ -158,12 +155,8 @@ exports.getNearbyStations = async function (stationArray) {
         }
     } else if (stationArray[0] === "station") {
         let station = stationArray[1];
-        logger.info(station);
         return [station];
-    } // else if (stationArray[0] === "google") {
-    //  let google = stationArray[1];
-    // logger.info(or_google);
-    //}
+    }
     return [];
 };
 
@@ -200,10 +193,8 @@ exports.groupByRoute = function (realRoutes) {
             currentRoute = realRoutes[j].route_id; //set to the current route_id
         }
     }
-    superResult.push(result); //agregate everything
-    //result = []; //reset
 
-    //logger.info(superResult);
+    superResult.push(result); //agregate everything
     return superResult;
 };
 
@@ -284,21 +275,71 @@ exports.getNextTrainTime = async function (origin_id, destination_id, routeArriv
                 maxResult: 1,
             },
         );
-
-        console.log(
-            "trips:",
-            trips,
-            origin_id,
-            "=>",
-            destination_id,
-            routeArrivalTime.format(),
-            routeArrivalTimeString,
-        );
     } catch (error) {
         logger.error(`At getNextTrainTime, getting trips: ${error}`);
     }
 
     return { waitTime: parseFloat(trips[0].arriving_in), tripId: trips[0].trip_id };
+};
+
+exports.getArrayOfNextTrainTimes = async function (array) {
+    let now = dayjs();
+    let todaysDay = now.day();
+    let queryString = ``;
+    let trips = [];
+
+    Object.keys(array).map((key, iteration) => {
+        if (iteration === 0) {
+            queryString += `
+                select trips.trip_id, (headway_secs * ceiling((time_to_sec(time('${array[key][2]}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${array[key][2]}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in from stop_times current
+                    inner join stop_times head on head.stop_sequence=1 and current.trip_id=head.trip_id and current.stop_id='${array[key][0]}'
+                    inner join stop_times destination on current.trip_id=destination.trip_id and destination.stop_id='${array[key][1]}' and destination.stop_sequence>current.stop_sequence
+                    inner join stops destination_details on destination.stop_id=destination_details.stop_id
+                    inner join trips on current.trip_id = trips.trip_id
+                    inner join calendar on trips.service_id = calendar.service_id and calendar.${WEEKDAYS[todaysDay]}='1'
+                    inner join routes on trips.route_id = routes.route_id
+                    inner join frequencies on frequencies.trip_id=current.trip_id and time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) < time_to_sec(time(frequencies.end_time)) + frequencies.headway_secs and time_to_sec(time('${array[key][2]}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) >= time_to_sec(time(frequencies.start_time))
+                    order by arriving_in asc
+                    limit 1 
+            `;
+        } else {
+            queryString += `
+                union select trips.trip_id, (headway_secs * ceiling((time_to_sec(time('${array[key][2]}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${array[key][2]}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in from stop_times current
+                    inner join stop_times head on head.stop_sequence=1 and current.trip_id=head.trip_id and current.stop_id='${array[key][0]}'
+                    inner join stop_times destination on current.trip_id=destination.trip_id and destination.stop_id='${array[key][1]}' and destination.stop_sequence>current.stop_sequence
+                    inner join stops destination_details on destination.stop_id=destination_details.stop_id
+                    inner join trips on current.trip_id = trips.trip_id
+                    inner join calendar on trips.service_id = calendar.service_id and calendar.${WEEKDAYS[todaysDay]}='1'
+                    inner join routes on trips.route_id = routes.route_id
+                    inner join frequencies on frequencies.trip_id=current.trip_id and time_to_sec(time('${array[key][2]}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) < time_to_sec(time(frequencies.end_time)) + frequencies.headway_secs and time_to_sec(time('${routeArrivalTimeString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) >= time_to_sec(time(frequencies.start_time))
+                    order by arriving_in asc
+                    limit 1 
+            `;
+        }
+    });
+
+    try {
+        trips = await sequelize.query(queryString, {
+            type: QueryTypes.SELECT,
+        });
+    } catch (error) {
+        logger.error(`At getNextTrainTime, getting trips: ${error}`);
+    }
+
+    let response = [];
+
+    try {
+        Object.keys(trips).map((key) => {
+            response.push({
+                waitTime: parseFloat(trips[key].arriving_in),
+                tripId: trips[key].trip_id,
+            });
+        });
+    } catch (error) {
+        throw error;
+    }
+
+    return response;
 };
 
 exports.timeBetweenStation = async function (stop1, stop2, tripId) {

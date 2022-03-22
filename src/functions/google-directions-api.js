@@ -99,7 +99,7 @@ exports.getDirectionsFromGoogle = async function (
         else departure_time = "now";
 
     let data = await axios.get(
-        `https://maps.googleapis.com/maps/api/directions/json?destination=${DESTINATION}&origin=${ORIGIN}&mode=${mode}&units=${units}&departure_time=${departure_time}&key=${process.env.GOOGLE_MAPS_API_KEY}`,
+        `https://maps.googleapis.com/maps/api/directions/json?destination=${DESTINATION}&origin=${ORIGIN}&mode=${mode}&units=${units}&departure_time=${departure_time}&language=en&key=${process.env.GOOGLE_MAPS_API_KEY}`,
     );
 
     let directions = data.data;

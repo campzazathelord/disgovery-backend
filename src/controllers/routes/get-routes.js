@@ -17,6 +17,7 @@ const {
     getArrayOfFares,
     getTotalFares,
 } = require("../../functions/get-routes-util");
+const { getDirectionsFromGoogle } = require("../../functions/google-directions-api");
 
 exports.getRoutes = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
@@ -51,6 +52,8 @@ exports.getRoutes = async function (req, res) {
 
     let originStationIds = await getNearbyStations(origin);
     let destinationStationIds = await getNearbyStations(destination);
+    let originType = origin[0];
+    let destinationType = destination[0];
 
     if (!originStationIds || !destinationStationIds)
         return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
@@ -84,12 +87,76 @@ exports.getRoutes = async function (req, res) {
         return a.schedule.duration - b.schedule.duration;
     });
 
-    for (let i = 0; i < response.length - directionsNumber; i++) {
+    for (let i = response.length; i > directionsNumber; i--) {
         response.pop();
     }
 
+    response = await addDirectionsFromGoogle(response, originType, destinationType);
+
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: response });
 };
+
+async function addDirectionsFromGoogle(response, originType, destinationType) {
+    for (let direction of response) {
+        if (originType === "coordinates") {
+            direction.directions.unshift(
+                await getDirectionsFromGoogle(
+                    {
+                        type: "coordinates",
+                        coordinates: direction.origin.coordinates,
+                    },
+                    {
+                        type: "coordinates",
+                        coordinates: direction.destination.coordinates,
+                    },
+                ),
+            );
+        } else if (originType === "google") {
+            direction.directions.unshift(
+                await getDirectionsFromGoogle(
+                    {
+                        type: "place_id",
+                        place_id: direction.origin.place.place_id,
+                    },
+                    {
+                        type: "place_id",
+                        place_id: direction.destination.place.place_id,
+                    },
+                ),
+            );
+        }
+
+        if (destinationType === "coordinates") {
+            direction.directions.push(
+                await getDirectionsFromGoogle(
+                    {
+                        type: "coordinates",
+                        coordinates: direction.origin.coordinates,
+                    },
+                    {
+                        type: "coordinates",
+                        coordinates: direction.destination.coordinates,
+                    },
+                ),
+            );
+        } else if (destinationType === "google") {
+            direction.directions.push(
+                await getDirectionsFromGoogle(
+                    {
+                        type: "place_id",
+                        place_id: direction.origin.place.place_id,
+                    },
+                    {
+                        type: "place_id",
+                        place_id: direction.destination.place.place_id,
+                    },
+                ),
+            );
+        }
+    }
+
+    return response;
+}
 
 async function getRoutes(originId, destinationId, fare_options) {
     const allRoutes = await generateRoute(originId, destinationId);
@@ -137,9 +204,7 @@ async function getRoutes(originId, destinationId, fare_options) {
     for (let i = 0; i < realRoutes.length; i++) {
         result = {};
 
-        let now = performance.now();
         groupedRoutes = groupByRoute(realRoutes[i]);
-        console.log("GROUP BY ROUTE", performance.now() - now);
         let direction_result = [];
 
         now = performance.now();
@@ -180,17 +245,21 @@ async function getRoutes(originId, destinationId, fare_options) {
                 let duration;
                 if (individualRoute.type === "board") {
                     try {
+                        let perf = performance.now();
                         let { tripId } = await getNextTrainTime(
                             stopsArr[0],
                             stopsArr[stopsArr.length - 1],
                             routeArrivalTime,
                         );
+                        console.log("NEXT TRAIN TIME", performance.now() - perf);
+                        perf = performance.now();
 
                         duration = await timeBetweenStation(
                             stopsArr[0],
                             stopsArr[stopsArr.length - 1],
                             tripId,
                         );
+                        console.log("TIME BTW STN", performance.now() - perf);
                     } catch (error) {
                         logger.error(
                             `No routes from ${stopsArr[0]} to ${
@@ -219,10 +288,6 @@ async function getRoutes(originId, destinationId, fare_options) {
             breakToMainLoop = false;
             continue;
         }
-
-        console.log("FIND SCHEDULE", performance.now() - now);
-
-        now = performance.now();
 
         let firstStationOfRoute = realRoutes[i][0].stop_id;
         let lastStationOfRoute = realRoutes[i][0].stop_id;
@@ -265,8 +330,6 @@ async function getRoutes(originId, destinationId, fare_options) {
         );
         totalFares = getTotalFares(separateFares);
 
-        console.log("FIND FARES", performance.now() - now);
-
         now = performance.now();
 
         let overallDepartingTime = direction_result[0].schedule.departing_at;
@@ -285,7 +348,6 @@ async function getRoutes(originId, destinationId, fare_options) {
         result.directions = direction_result;
         result.origin = direction_result[0].from;
         result.destination = direction_result[direction_result.length - 1].to;
-        console.log("FINAL FORMATTING", performance.now() - now);
 
         resultArr.push(result);
     }
