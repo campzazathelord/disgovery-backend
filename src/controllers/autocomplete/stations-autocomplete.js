@@ -43,9 +43,6 @@ exports.getStationAutocomplete = async function getStationAutocomplete(req, res)
 
         const queriedTrips = await sequelize.query(queryString, { type: QueryTypes.SELECT });
 
-        console.log(queriedTrips);
-        console.log(responseObject);
-
         for (let trip of queriedTrips) {
             if (responseObject[trip.stop_id]) {
                 responseObject[trip.stop_id].trips = [
@@ -79,8 +76,6 @@ function fuzzySearch(arr, str, max_result) {
         includeScore: true,
         keys: ["stop_name_en", "stop_name_th"],
     };
-
-    console.log(max_result, "max");
 
     const fuse = new Fuse(arr, options);
 
