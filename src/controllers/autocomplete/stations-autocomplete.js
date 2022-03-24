@@ -1,92 +1,89 @@
-const Stop = require("../../models/Stop");
-const Fuzzy = require("../../functions/Fuzzy");
-const StationDetails = require("../../functions/StationDetails");
 const APIStatus = require("../../configs/api-errors");
 const { logger } = require("../../configs/config");
 const sequelize = require("../../db/database");
 const Fuse = require("fuse.js");
-const { Op, QueryTypes } = require("sequelize");
+const { QueryTypes } = require("sequelize");
+
 exports.getStationAutocomplete = async function getStationAutocomplete(req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
 
-    const query = req.query.query;
-    const max_result = parseInt(req.query.max_result) || 6;
+    try {
+        const query = req.query.query;
+        const max_result = parseInt(req.query.max_result) || 6;
 
-    if (!query) return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
-        const stationData = await sequelize.query(
-        `
-        select stop_id, stop_name, stop_lat, stop_lon, translation
-            from (select stop_id, stop_name, stop_lat, stop_lon from stops) as stops
-            INNER JOIN translations ON table_name='stops' AND field_name='stop_name' AND record_id=stop_id;
-        `,
-        {
-            type: QueryTypes.SELECT,
-        },
-    );
+        if (!query) return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
 
-    let allStationIDs = [];
-    let allStations = {};
-    let nameofStation = []
-    for(let items of Object.values(stationData)) {
-        
-        allStationIDs.push(items['stop_id']);
-        nameofStation.push(items['stop_name']);
+        const stationData = req.app.get("stops");
 
-        let key = items['stop_id'];
-        
-        let stopName = items['stop_name'];
-        let stopLat = items['stop_lat'];
-        let stopLng = items['stop_lon'];
-        let translation = items['translation']
+        const fuzzyResults = fuzzySearch(stationData, query, max_result);
+        let queryString = "";
 
-        allStations[stopName] = {
-            stopName,stopLat,stopLng,translation,key
-        };
-    }
-    const resultFuzzy = Fuzzy(nameofStation,query,max_result)
-    for(let {item:data} of resultFuzzy){
-        let queryString = `select routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, routes.route_color, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${allStations[data].key}') stop_times
-        inner join trips on stop_times.trip_id=trips.trip_id
-        inner join routes on trips.route_id = routes.route_id`
-        const stationTrips = await sequelize.query(
-            queryString,
-            {
-                type: QueryTypes.SELECT,
-            },
-        );
-        let formattedTrips = []
-        for(let trips of stationTrips){
-            formattedTrips.push({
-                id: trips[`trip_id`],
-                route_id:trips[`route_id`],
-                route_name: {
-                    long_name:trips[`route_long_name`],
-                    short_name:trips[`route_short_name`],
+        let responseObject = {};
+
+        Object.keys(fuzzyResults).map((key, index) => {
+            responseObject[fuzzyResults[key].item.stop_id] = {
+                station_id: fuzzyResults[key].item.stop_id,
+                name: {
+                    en: fuzzyResults[key].item.stop_name_en.trim(),
+                    th: fuzzyResults[key].item.stop_name_th.trim(),
                 },
-                type:trips[`route_type`],
-                color:trips[`route_color`],
-                headsign:trips[`trip_headsign`]
-                
-            })
+                location: {
+                    lat: fuzzyResults[key].item.stop_lat,
+                    lng: fuzzyResults[key].item.stop_lon,
+                },
+                trips: [],
+            };
+
+            if (index === 0) {
+                queryString += `select stop_id, routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, routes.route_color, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${fuzzyResults[key].item.stop_id}') stop_times inner join trips on stop_times.trip_id=trips.trip_id inner join routes on trips.route_id = routes.route_id `;
+            } else {
+                queryString += `union select stop_id, routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, routes.route_color, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${fuzzyResults[key].item.stop_id}') stop_times inner join trips on stop_times.trip_id=trips.trip_id inner join routes on trips.route_id = routes.route_id `;
+            }
+        });
+
+        const queriedTrips = await sequelize.query(queryString, { type: QueryTypes.SELECT });
+
+        console.log(queriedTrips);
+        console.log(responseObject);
+
+        for (let trip of queriedTrips) {
+            if (responseObject[trip.stop_id]) {
+                responseObject[trip.stop_id].trips = [
+                    ...responseObject[trip.stop_id].trips,
+                    {
+                        route_id: trip[`route_id`],
+                        route_name: {
+                            long_name: trip[`route_long_name`],
+                            short_name: trip[`route_short_name`],
+                        },
+                        type: trip[`route_type`],
+                        color: trip[`route_color`],
+                        headsign: trip[`trip_headsign`],
+                    },
+                ];
+            }
         }
-        allStations[data] = {...allStations[data],trips:formattedTrips}
+
+        return res
+            .status(APIStatus.OK.status)
+            .send({ status: APIStatus.OK, data: Object.values(responseObject) });
+    } catch (error) {
+        return res
+            .status(APIStatus.INTERNAL.SERVER_ERROR.status)
+            .send({ status: { status: APIStatus.INTERNAL.SERVER_ERROR.status, message: error } });
     }
-    const returnedData = []
-    for(let {item:stationName} of resultFuzzy){
-        returnedData.push({
-            station_id:allStations[stationName].key,
-            name:{
-                en:allStations[stationName].stopName,
-                th:allStations[stationName].translation
-            },
-            location:{
-                coords:{
-                    lat:allStations[stationName].stopLat,
-                    lng:allStations[stationName].stopLng
-                }
-            },
-            trips:allStations[stationName].trips
-        })
-    }
-    res.send(returnedData)
+};
+
+function fuzzySearch(arr, str, max_result) {
+    const options = {
+        includeScore: true,
+        keys: ["stop_name_en", "stop_name_th"],
+    };
+
+    console.log(max_result, "max");
+
+    const fuse = new Fuse(arr, options);
+
+    const result = fuse.search(str, { limit: max_result || 6 });
+    return result;
 }
