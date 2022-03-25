@@ -22,7 +22,7 @@ exports.getAllStationsFromRoute = async function (req, res) {
                     INNER JOIN trips
                     ON trips.trip_id = trip_id_maxstopseq.trip_id) AS trip_route_maxstopseq
             WHERE rowNumber = 1 and route_id='${routeId}') as trip_with_max_stops
-            natural join (select trip_id, stop_id from stop_times) as stop_times
+            natural join (select trip_id, stop_id, parent_station from stop_times natural join (select stop_id, parent_station from stops) as parent) as stop_times;
         `,
             {
                 type: QueryTypes.SELECT,

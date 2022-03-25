@@ -14,6 +14,9 @@ const { getRoutesAutocomplete } = require("../controllers/autocomplete/routes-au
 const { getAllRoutes } = require("../controllers/internal/get-all-routes");
 const { getAllStationsFromRoute } = require("../controllers/internal/get-all-stations-from-route");
 const { getAllTripsOfStop } = require("../controllers/internal/get-all-trips-of-stop");
+const { getAllPlatformsOfStop } = require("../controllers/internal/get-platforms-of-stop");
+const { getRawStopDetails } = require("../controllers/internal/get-raw-stop-details");
+const { addPlatform } = require("../controllers/internal/add-platform");
 
 const formUrlEncoded = (x) =>
     Object.keys(x).reduce((p, c) => p + `&${c}=${encodeURIComponent(x[c])}`, "");
@@ -35,6 +38,9 @@ router.get("/autocomplete/lines", getRoutesAutocomplete); //API 2-3
 router.get("/internal/get-all-routes", getAllRoutes); // INTERNAL GET ALL ROUTES
 router.get("/internal/get-all-stations-from-route", getAllStationsFromRoute); // INTERNAL GET ALL STATIONS FROM ROUTE
 router.get("/internal/get-all-trips-of-stop", getAllTripsOfStop); // INTERNAL GET ALL TRIPS OF STOP
+router.get("/internal/get-all-platforms-of-stop", getAllPlatformsOfStop); // INTERNAL GET ALL PLATFORMS OF STOP
+router.get("/internal/get-raw-stop-details", getRawStopDetails); // INTERNAL GET RAW STOP DETAILS
+router.post("/internal/add-platform", addPlatform); // INTERNAL ADD PLATFORM
 
 router.post("/:id/test", test);
 
