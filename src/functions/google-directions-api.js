@@ -133,6 +133,7 @@ exports.getDirectionsFromGoogle = async function (
                         ? directions.geocoded_waypoints[1].place_id
                         : "",
             },
+            coordinates: directions.routes[0].legs[0].start_location,
         };
 
         let now = dayjs();
