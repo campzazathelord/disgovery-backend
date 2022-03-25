@@ -91,23 +91,29 @@ exports.getRoutes = async function (req, res) {
         response.pop();
     }
 
-    response = await addDirectionsFromGoogle(response, originType, destinationType);
+    //console.log(response,'RESPONSE BEFORE');
+    response = await addDirectionsFromGoogle(response, originType, destinationType, origin, destination);
+    //console.log(response,'RESPONSE AFTER');
 
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: response });
 };
 
-async function addDirectionsFromGoogle(response, originType, destinationType) {
+async function addDirectionsFromGoogle(response, originType, destinationType, origin, destination) {
+
     for (let direction of response) {
         if (originType === "coordinates") {
+            // console.log(formatLatLng(origin[1]),"formatLatLng(origin[1])");
+            // console.log(direction.directions[0].from.coordinates,"direction.directions[0].from.coordinates");
             direction.directions.unshift(
                 await getDirectionsFromGoogle(
                     {
                         type: "coordinates",
-                        coordinates: direction.origin.coordinates,
+                        coordinates: formatLatLng(origin[1]),
                     },
                     {
                         type: "coordinates",
-                        coordinates: direction.destination.coordinates,
+                        //coordinates: direction.destination.coordinates,
+                        coordinates: direction.directions[0].from.coordinates,
                     },
                 ),
             );
@@ -126,16 +132,26 @@ async function addDirectionsFromGoogle(response, originType, destinationType) {
             );
         }
 
+        if(originType === "google" || originType === "coordinates"){
+            let originWalkDuration = direction.directions[0].schedule.duration;
+            console.log('originWalkDuration:',originWalkDuration);
+            direction.schedule.duration += originWalkDuration;
+            direction.schedule.arriving_at = dayjs(direction.schedule.arriving_at).add(originWalkDuration,"seconds").format();
+        }
+
         if (destinationType === "coordinates") {
+            //console.log(direction.directions[direction.directions.length-1].to.coordinates,"direction.directions[direction.directions.length-1].to.coordinates");
+            //console.log(formatLatLng(destination[1]),"v");
             direction.directions.push(
                 await getDirectionsFromGoogle(
                     {
                         type: "coordinates",
-                        coordinates: direction.origin.coordinates,
+                        //coordinates: direction.origin.coordinates,
+                        coordinates: direction.directions[direction.directions.length-1].to.coordinates,
                     },
                     {
                         type: "coordinates",
-                        coordinates: direction.destination.coordinates,
+                        coordinates: formatLatLng(destination[1]),
                     },
                 ),
             );
@@ -153,8 +169,14 @@ async function addDirectionsFromGoogle(response, originType, destinationType) {
                 ),
             );
         }
-    }
 
+        if(destinationType === "google" || destinationType === "coordinates"){
+            let destinationWalkDuration = direction.directions[direction.directions.length-1].schedule.duration;
+            console.log('destinationWalkDuration:',destinationWalkDuration);
+            direction.schedule.duration += destinationWalkDuration;
+            direction.schedule.arriving_at = dayjs(direction.schedule.arriving_at).add(destinationWalkDuration,"seconds").format();
+        }
+    }
     return response;
 }
 
@@ -353,4 +375,12 @@ async function getRoutes(originId, destinationId, fare_options) {
     }
 
     return resultArr;
+}
+
+function formatLatLng(unformatted){
+    latLng = unformatted.split(',')
+    return {
+        lat:latLng[0],
+        lng:latLng[1],
+    };
 }
