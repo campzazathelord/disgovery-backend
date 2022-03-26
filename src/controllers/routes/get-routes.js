@@ -92,15 +92,15 @@ exports.getRoutes = async function (req, res) {
     }
     
     //checks for dupe route (same Directions) and removes it
-    for (let i = 0; i<response.length;i++){
-        for(let j = i+1; j<response.length;j++){
-            if(checkDirections(response[i],response[j])){
-                console.log('SameDirections');
-                response.splice(j,1);
-                j--
-            } 
-        }
-    }
+    // for (let i = 0; i<response.length;i++){
+    //     for(let j = i+1; j<response.length;j++){
+    //         if(checkDirections(response[i],response[j])){
+    //             console.log('SameDirections');
+    //             response.splice(j,1);
+    //             j--
+    //         } 
+    //     }
+    // }
 
     //console.log(response,'RESPONSE BEFORE');
     response = await addDirectionsFromGoogle(response, originType, destinationType, origin, destination);

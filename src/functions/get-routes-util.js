@@ -146,6 +146,18 @@ exports.getNearbyStations = async function (stationArray) {
                     for (let station of stations) {
                         result.push(station.stop_id);
                     }
+                    //alt dupe route fix
+                    for (let i = 0; i<result.length;i++){
+                        for(let j = i+1; j<result.length;j++){
+                            let transferTime = await getTransferTime(result[i],result[j]);
+                            if(transferTime>0){
+                                console.log('Transfer Detected');
+                                result.splice(j,1);
+                                j--;
+                            }
+                        }
+                    }
+
                     return result;
                 }
             }
@@ -358,7 +370,7 @@ exports.timeBetweenStation = async function (stop1, stop2, tripId) {
     return parseFloat(timeBtwStation[0].boarding_time);
 };
 
-exports.getTransferTime = async function (stop1, stop2) {
+async function getTransferTime (stop1, stop2) {
     const transferTime = await sequelize.query(
         `
         SELECT min_transfer_time
@@ -374,6 +386,8 @@ exports.getTransferTime = async function (stop1, stop2) {
     if (transferTime[0]) return transferTime[0].min_transfer_time || 0;
     else return 0;
 };
+
+exports.getTransferTime = async (input1,input2) => await getTransferTime(input1,input2);
 
 async function toISOString(input) {
     let splittedTime = {
