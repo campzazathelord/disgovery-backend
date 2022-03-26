@@ -22,9 +22,9 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
     let unionFaresString = "";
     Object.keys(arrayOfOriginsToDestinations).map((key, iteration) => {
         if (iteration === 0) {
-            unionFaresString += `select origin_id, destination_id, fare_id from fare_rules where origin_id='${arrayOfOriginsToDestinations[key].origin_id}' and destination_id='${arrayOfOriginsToDestinations[key].destination_id}'`;
+            unionFaresString += `select origin_id, destination_id, fare_id from fare_rules where origin_id='${arrayOfOriginsToDestinations[key].origin_zone_id}' and destination_id='${arrayOfOriginsToDestinations[key].destination_zone_id}'`;
         } else {
-            unionFaresString += ` union select origin_id, destination_id, fare_id from fare_rules where origin_id='${arrayOfOriginsToDestinations[key].origin_id}' and destination_id='${arrayOfOriginsToDestinations[key].destination_id}'`;
+            unionFaresString += ` union select origin_id, destination_id, fare_id from fare_rules where origin_id='${arrayOfOriginsToDestinations[key].origin_zone_id}' and destination_id='${arrayOfOriginsToDestinations[key].destination_zone_id}'`;
         }
     });
 
@@ -48,7 +48,6 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
             allStations.push(arrayOfOriginsToDestinations[key].destination_id);
     });
 
-    let allStationsDetails = [];
     let allStationsDetailsObject = {};
 
     if (!allStops) {
@@ -64,10 +63,13 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
     }
 
     let currentOrigin = "",
-        currentDestination = "";
+        currentDestination = "",
+        currentOriginZone = "",
+        currentDestinationZone = "";
     let currentFare = { currency: "THB" };
     let faresAdded = [];
     let response = [];
+    let overallIteration = 0;
 
     Object.keys(allFares).map((key) => {
         if (faresAdded.includes(`${allFares[key].origin_id}___${allFares[key].destination_id}`)) {
@@ -80,7 +82,12 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
                     currentFare[allFares[key].fare_type] = parseFloat(allFares[key].price);
             }
         } else {
-            if (currentOrigin && currentDestination) {
+            if (
+                currentOriginZone &&
+                currentDestinationZone &&
+                currentDestination &&
+                currentOrigin
+            ) {
                 response.push({
                     from: allStationsDetailsObject[currentOrigin],
                     to: allStationsDetailsObject[currentDestination],
@@ -88,8 +95,12 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
                 });
             }
 
-            currentOrigin = allFares[key].origin_id;
-            currentDestination = allFares[key].destination_id;
+            currentOriginZone = allFares[key].origin_id;
+            currentDestinationZone = allFares[key].destination_id;
+            currentOrigin = arrayOfOriginsToDestinations[overallIteration].origin_id;
+            currentDestination = arrayOfOriginsToDestinations[overallIteration].destination_id;
+            overallIteration++;
+
             currentFare = {
                 currency: "THB",
             };
@@ -107,7 +118,7 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
         }
     });
 
-    if (currentOrigin && currentDestination) {
+    if (currentOriginZone && currentDestinationZone && currentDestination && currentOrigin) {
         response.push({
             from: allStationsDetailsObject[currentOrigin],
             to: allStationsDetailsObject[currentDestination],

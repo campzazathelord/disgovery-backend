@@ -123,6 +123,23 @@ exports.getRoutes = async function (req, res) {
 
         let response = [];
 
+        const routeOfStation = await sequelize.query(
+            `
+                SELECT zone_id, stop_ids.stop_id, route_id FROM (
+                        SELECT stop_id, route_id
+                        FROM ((SELECT trip_id, stop_id
+                            FROM stop_times
+                            GROUP BY stop_id) AS trip_ids
+                        INNER JOIN trips
+                        ON trips.trip_id = trip_ids.trip_id)
+                ) AS stop_ids
+                INNER JOIN stops ON stops.stop_id=stop_ids.stop_id;
+            `,
+            {
+                type: QueryTypes.SELECT,
+            },
+        );
+
         for (let originStationId of originStationIds) {
             for (let destinationStationId of destinationStationIds) {
                 perf = performance.now();
@@ -137,6 +154,7 @@ exports.getRoutes = async function (req, res) {
                                 : undefined
                             : undefined || undefined,
                         allStops,
+                        routeOfStation,
                     )),
                 );
                 console.log("----- FOUND ROUTE IN", performance.now() - perf);
@@ -235,26 +253,19 @@ exports.getRoutes = async function (req, res) {
 let cachedTimeBetweenStations = {};
 let cachedNextTrainTime = {};
 let cachedFares = {};
+let cachedTransfers = {};
 
-async function getRoutes(originId, destinationId, fare_options, departingAt, allStops) {
+async function getRoutes(
+    originId,
+    destinationId,
+    fare_options,
+    departingAt,
+    allStops,
+    routeOfStation,
+) {
+    let now = performance.now();
     const allRoutes = await generateRoute(originId, destinationId);
-
-    const routeOfStation = await sequelize.query(
-        `
-            SELECT zone_id, stop_ids.stop_id, route_id FROM (
-                    SELECT stop_id, route_id
-                    FROM ((SELECT trip_id, stop_id
-                        FROM stop_times
-                        GROUP BY stop_id) AS trip_ids
-                    INNER JOIN trips
-                    ON trips.trip_id = trip_ids.trip_id)
-            ) AS stop_ids
-            INNER JOIN stops ON stops.stop_id=stop_ids.stop_id;
-        `,
-        {
-            type: QueryTypes.SELECT,
-        },
-    );
+    console.log("------- GEN ROUTE", performance.now() - now);
 
     let routeOfStationObj = {};
     for (let routeObj of routeOfStation) {
@@ -411,7 +422,15 @@ async function getRoutes(originId, destinationId, fare_options, departingAt, all
                     tmpResult.schedule.duration = duration;
                 } else if (individualRoute.type === "transfer") {
                     let perf = performance.now();
-                    let transferDuration = await getTransferTime(stopsArr[0], stopsArr[1]);
+                    let transferDuration = 0;
+
+                    if (!cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`]) {
+                        transferDuration = await getTransferTime(stopsArr[0], stopsArr[1]);
+                        cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`] = transferDuration;
+                    } else {
+                        transferDuration = cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`];
+                    }
+
                     console.log("TRANSFER TIME", performance.now() - perf);
                     duration = transferDuration;
 
@@ -435,7 +454,9 @@ async function getRoutes(originId, destinationId, fare_options, departingAt, all
         }
 
         let firstStationOfRoute = realRoutes[i][0].stop_id;
+        let firstZoneOfRoute = realRoutes[i][0].zone_id;
         let lastStationOfRoute = realRoutes[i][0].stop_id;
+        let lastZoneOfRoute = realRoutes[i][0].zone_id;
         let currentRouteId = realRoutes[i][0].route_id;
         let separateFares,
             totalFares = {};
@@ -449,10 +470,13 @@ async function getRoutes(originId, destinationId, fare_options, departingAt, all
                         jointFareRules[realRoutes[i][j].route_id].includes(currentRouteId))
                 ) {
                     lastStationOfRoute = realRoutes[i][j].stop_id;
+                    lastZoneOfRoute = realRoutes[i][j].zone_id;
 
                     faresToFind.push({
                         origin_id: firstStationOfRoute,
                         destination_id: lastStationOfRoute,
+                        origin_zone_id: firstZoneOfRoute,
+                        destination_zone_id: lastZoneOfRoute,
                     });
                 }
             }
@@ -463,14 +487,19 @@ async function getRoutes(originId, destinationId, fare_options, departingAt, all
                     jointFareRules[realRoutes[i][j].route_id].includes(currentRouteId))
             ) {
                 lastStationOfRoute = realRoutes[i][j].stop_id;
+                lastZoneOfRoute = realRoutes[i][j].zone_id;
             } else {
                 faresToFind.push({
                     origin_id: firstStationOfRoute,
                     destination_id: lastStationOfRoute,
+                    origin_zone_id: firstZoneOfRoute,
+                    destination_zone_id: lastZoneOfRoute,
                 });
 
                 firstStationOfRoute = realRoutes[i][j].stop_id;
+                firstZoneOfRoute = realRoutes[i][j].zone_id;
                 lastStationOfRoute = realRoutes[i][j].stop_id;
+                lastZoneOfRoute = realRoutes[i][j].zone_id;
                 currentRouteId = realRoutes[i][j].route_id;
             }
         }
@@ -530,6 +559,8 @@ async function getRoutes(originId, destinationId, fare_options, departingAt, all
         result.directions = direction_result;
         result.origin = direction_result[0].from;
         result.destination = direction_result[direction_result.length - 1].to;
+
+        console.log("FORMATTED IN", performance.now() - now);
 
         resultArr.push(result);
     }
