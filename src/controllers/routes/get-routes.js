@@ -10,7 +10,6 @@ const { jointFareRules } = require("../../db/joint-fare-rules");
 const {
     getNearbyStations,
     groupByRoute,
-    getArrayOfStationDetails,
     getNextTrainTime,
     timeBetweenStation,
     getTransferTime,
