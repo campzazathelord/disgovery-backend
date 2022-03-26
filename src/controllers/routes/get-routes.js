@@ -304,6 +304,7 @@ async function getRoutes(
             let routeArrivalTime = dayjs(departingAt || undefined).add(1, "minute");
 
             for (let individualRoute of groupedRoute) {
+                stopsStationDetails = [];
                 if (individualRoute.type !== "transfer")
                     line = await Route.findOne({ where: { route_id: individualRoute.line } });
 
