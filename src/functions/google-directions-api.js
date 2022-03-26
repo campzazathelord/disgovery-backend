@@ -84,8 +84,6 @@ exports.getDirectionsFromGoogle = async function (
     const ORIGIN = checkFormat(origin),
         DESTINATION = checkFormat(destination);
 
-    console.log(origin, destination);
-
     if (!ORIGIN || !DESTINATION) return;
 
     if (!mode) mode = "walking";
