@@ -144,8 +144,23 @@ exports.getRoutes = async function (req, res) {
         response.pop();
     }
 
-    // Add destination walk directions if available
+    // Add origin and destination walk directions if available
     for (let i in response) {
+        // Origin
+        if (googleDirections[response[i].directions[0].from.station.id]) {
+            let googleDirection = JSON.parse(
+                JSON.stringify(googleDirections[response[i].directions[0].from.station.id]),
+            );
+
+            response[i].directions.unshift(googleDirection);
+            response[i].schedule.departing_at = response[i].directions[0].schedule.departing_at;
+            response[i].schedule.duration = dayjs(response[i].schedule.arriving_at).diff(
+                dayjs(response[i].schedule.departing_at),
+                "second",
+            );
+        }
+
+        // Destination
         if (
             googleDirections[
                 response[i].directions[response[i].directions.length - 1].to.station.id
@@ -170,7 +185,13 @@ exports.getRoutes = async function (req, res) {
                 duration: googleDirection.schedule.duration,
             };
 
-            response[i].directions = [...response[i].directions, googleDirection];
+            response[i].directions.push(googleDirection);
+            response[i].schedule.arriving_at =
+                response[i].directions[response[i].directions.length - 1].schedule.arriving_at;
+            response[i].schedule.duration = dayjs(response[i].schedule.arriving_at).diff(
+                dayjs(response[i].schedule.departing_at),
+                "second",
+            );
         }
     }
 
@@ -362,6 +383,10 @@ async function getRoutes(originId, destinationId, fare_options, departingAt) {
             fare_options.length === 0 ? undefined : fare_options,
         );
         totalFares = getTotalFares(separateFares);
+
+        console.log(faresToFind);
+        console.log(separateFares);
+        console.log(totalFares);
 
         now = performance.now();
 
