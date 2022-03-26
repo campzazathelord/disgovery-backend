@@ -13,7 +13,7 @@ exports.getStationAutocomplete = async function getStationAutocomplete(req, res)
 
         if (!query) return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
 
-        const stationData = req.app.get("stops");
+        const stationData = Object.values(req.app.get("stops"));
 
         const fuzzyResults = fuzzySearch(stationData, query, max_result);
         let queryString = "";
@@ -65,9 +65,9 @@ exports.getStationAutocomplete = async function getStationAutocomplete(req, res)
             .status(APIStatus.OK.status)
             .send({ status: APIStatus.OK, data: Object.values(responseObject) });
     } catch (error) {
-        return res
-            .status(APIStatus.INTERNAL.SERVER_ERROR.status)
-            .send({ status: { status: APIStatus.INTERNAL.SERVER_ERROR.status, message: error } });
+        return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
+            status: { status: APIStatus.INTERNAL.SERVER_ERROR.status, message: error.message },
+        });
     }
 };
 

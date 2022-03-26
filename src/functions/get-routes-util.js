@@ -130,8 +130,9 @@ exports.getTotalFares = function (allFares) {
 exports.getNearbyStations = async function (stationArray) {
     const RADIUS_STEP = 5000;
     const MAX_RADIUS = 30000;
-    const MAX_NEARBY_STATIONS = 3;
+    const MAX_NEARBY_STATIONS = 1;
     let result = [];
+
     if (stationArray[0] === "coordinates") {
         let coordinates = stationArray[1].split(",");
         let lat = coordinates[0];
@@ -146,13 +147,13 @@ exports.getNearbyStations = async function (stationArray) {
                     for (let station of stations) {
                         result.push(station.stop_id);
                     }
-                    //alt dupe route fix
-                    for (let i = 0; i<result.length;i++){
-                        for(let j = i+1; j<result.length;j++){
-                            let transferTime = await getTransferTime(result[i],result[j]);
-                            if(transferTime>0){
-                                console.log('Transfer Detected');
-                                result.splice(j,1);
+
+                    for (let i = 0; i < result.length; i++) {
+                        for (let j = i + 1; j < result.length; j++) {
+                            let transferTime = await getTransferTime(result[i], result[j]);
+                            if (transferTime > 0) {
+                                console.log("Transfer Detected");
+                                result.splice(j, 1);
                                 j--;
                             }
                         }
@@ -169,8 +170,25 @@ exports.getNearbyStations = async function (stationArray) {
         let station = stationArray[1];
         return [station];
     }
+
     return [];
 };
+
+function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+    var R = 6371;
+    var dLat = deg2rad(lat2 - lat1);
+    var dLon = deg2rad(lon2 - lon1);
+    var a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    var d = R * c * 1000;
+    return d; // DISTANCE IN METRES
+}
+
+function deg2rad(deg) {
+    return deg * (Math.PI / 180);
+}
 
 exports.groupByRoute = function (realRoutes) {
     let firstStation, lastStation, currentRoute;
@@ -370,7 +388,7 @@ exports.timeBetweenStation = async function (stop1, stop2, tripId) {
     return parseFloat(timeBtwStation[0].boarding_time);
 };
 
-async function getTransferTime (stop1, stop2) {
+async function getTransferTime(stop1, stop2) {
     const transferTime = await sequelize.query(
         `
         SELECT min_transfer_time
@@ -385,9 +403,9 @@ async function getTransferTime (stop1, stop2) {
 
     if (transferTime[0]) return transferTime[0].min_transfer_time || 0;
     else return 0;
-};
+}
 
-exports.getTransferTime = async (input1,input2) => await getTransferTime(input1,input2);
+exports.getTransferTime = async (input1, input2) => await getTransferTime(input1, input2);
 
 async function toISOString(input) {
     let splittedTime = {

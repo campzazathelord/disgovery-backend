@@ -30,7 +30,8 @@ exports.getRoutes = async function (req, res) {
             message: "Origin and destination are required",
         });
 
-    let origin, destination, time;
+    let origin, destination;
+    const allStops = req.app.get("stops");
 
     try {
         origin = req.body.origin.split(":");
@@ -54,12 +55,59 @@ exports.getRoutes = async function (req, res) {
     let destinationStationIds = await getNearbyStations(destination);
     let originType = origin[0];
     let destinationType = destination[0];
+    let googleDirections = {};
+
+    console.log(originStationIds, destinationStationIds);
 
     if (!originStationIds || !destinationStationIds)
         return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
             status: APIStatus.INTERNAL.SERVER_ERROR.status,
             message: "Unable to find nearby stations from the origin or the destination.",
         });
+
+    if (originType === "coordinates") {
+        for (let originId of originStationIds) {
+            let originCoordinates = origin[1].split(",");
+            googleDirections[originId] = await getDirectionsFromGoogle(
+                {
+                    type: "coordinates",
+                    coordinates: {
+                        lat: parseFloat(originCoordinates[0]),
+                        lng: parseFloat(originCoordinates[1]),
+                    },
+                },
+                {
+                    type: "coordinates",
+                    coordinates: {
+                        lat: parseFloat(allStops[originId].stop_lat),
+                        lng: parseFloat(allStops[originId].stop_lon),
+                    },
+                },
+            );
+        }
+    }
+
+    if (destinationType === "coordinates") {
+        for (let destinationId of destinationStationIds) {
+            let destinationCoordinates = destination[1].split(",");
+            googleDirections[destinationId] = await getDirectionsFromGoogle(
+                {
+                    type: "coordinates",
+                    coordinates: {
+                        lat: parseFloat(allStops[destinationId].stop_lat),
+                        lng: parseFloat(allStops[destinationId].stop_lon),
+                    },
+                },
+                {
+                    type: "coordinates",
+                    coordinates: {
+                        lat: parseFloat(destinationCoordinates[0]),
+                        lng: parseFloat(destinationCoordinates[1]),
+                    },
+                },
+            );
+        }
+    }
 
     let fare_options = ["adult"];
 
@@ -74,7 +122,12 @@ exports.getRoutes = async function (req, res) {
     for (let originStationId of originStationIds) {
         for (let destinationStationId of destinationStationIds) {
             response.push(
-                ...(await getRoutes(originStationId, destinationStationId, fare_options)),
+                ...(await getRoutes(
+                    originStationId,
+                    destinationStationId,
+                    fare_options,
+                    googleDirections[originStationId].schedule.arriving_at,
+                )),
             );
         }
     }
@@ -91,118 +144,40 @@ exports.getRoutes = async function (req, res) {
         response.pop();
     }
 
-    //checks for dupe route (same Directions) and removes it
-    // for (let i = 0; i<response.length;i++){
-    //     for(let j = i+1; j<response.length;j++){
-    //         if(checkDirections(response[i],response[j])){
-    //             console.log('SameDirections');
-    //             response.splice(j,1);
-    //             j--
-    //         }
-    //     }
-    // }
+    // Add destination walk directions if available
+    for (let i in response) {
+        if (
+            googleDirections[
+                response[i].directions[response[i].directions.length - 1].to.station.id
+            ]
+        ) {
+            let googleDirection = JSON.parse(
+                JSON.stringify(
+                    googleDirections[
+                        response[i].directions[response[i].directions.length - 1].to.station.id
+                    ],
+                ),
+            );
 
-    //console.log(response,'RESPONSE BEFORE');
-    response = await addDirectionsFromGoogle(
-        response,
-        originType,
-        destinationType,
-        origin,
-        destination,
-    );
-    //console.log(response,'RESPONSE AFTER');
+            googleDirection.schedule = {
+                departing_at:
+                    response[i].directions[response[i].directions.length - 1].schedule.arriving_at,
+                arriving_at: dayjs(
+                    response[i].directions[response[i].directions.length - 1].schedule.arriving_at,
+                )
+                    .add(googleDirection.schedule.duration, "second")
+                    .format(),
+                duration: googleDirection.schedule.duration,
+            };
+
+            response[i].directions = [...response[i].directions, googleDirection];
+        }
+    }
 
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: response });
 };
 
-async function addDirectionsFromGoogle(response, originType, destinationType, origin, destination) {
-    for (let direction of response) {
-        if (originType === "coordinates") {
-            // console.log(formatLatLng(origin[1]),"formatLatLng(origin[1])");
-            // console.log(direction.directions[0].from.coordinates,"direction.directions[0].from.coordinates");
-            direction.directions.unshift(
-                await getDirectionsFromGoogle(
-                    {
-                        type: "coordinates",
-                        coordinates: formatLatLng(origin[1]),
-                    },
-                    {
-                        type: "coordinates",
-                        //coordinates: direction.destination.coordinates,
-                        coordinates: direction.directions[0].from.coordinates,
-                    },
-                ),
-            );
-        } else if (originType === "google") {
-            direction.directions.unshift(
-                await getDirectionsFromGoogle(
-                    {
-                        type: "place_id",
-                        place_id: direction.origin.place.place_id,
-                    },
-                    {
-                        type: "place_id",
-                        place_id: direction.destination.place.place_id,
-                    },
-                ),
-            );
-        }
-
-        if (originType === "google" || originType === "coordinates") {
-            let originWalkDuration = direction.directions[0].schedule.duration;
-            console.log("originWalkDuration:", originWalkDuration);
-            direction.schedule.duration += originWalkDuration;
-            direction.schedule.arriving_at = dayjs(direction.schedule.arriving_at)
-                .add(originWalkDuration, "seconds")
-                .format();
-        }
-
-        if (destinationType === "coordinates") {
-            //console.log(direction.directions[direction.directions.length-1].to.coordinates,"direction.directions[direction.directions.length-1].to.coordinates");
-            //console.log(formatLatLng(destination[1]),"v");
-            direction.directions.push(
-                await getDirectionsFromGoogle(
-                    {
-                        type: "coordinates",
-                        //coordinates: direction.origin.coordinates,
-                        coordinates:
-                            direction.directions[direction.directions.length - 1].to.coordinates,
-                    },
-                    {
-                        type: "coordinates",
-                        coordinates: formatLatLng(destination[1]),
-                    },
-                ),
-            );
-        } else if (destinationType === "google") {
-            direction.directions.push(
-                await getDirectionsFromGoogle(
-                    {
-                        type: "place_id",
-                        place_id: direction.origin.place.place_id,
-                    },
-                    {
-                        type: "place_id",
-                        place_id: direction.destination.place.place_id,
-                    },
-                ),
-            );
-        }
-
-        if (destinationType === "google" || destinationType === "coordinates") {
-            let destinationWalkDuration =
-                direction.directions[direction.directions.length - 1].schedule.duration;
-            console.log("destinationWalkDuration:", destinationWalkDuration);
-            direction.schedule.duration += destinationWalkDuration;
-            direction.schedule.arriving_at = dayjs(direction.schedule.arriving_at)
-                .add(destinationWalkDuration, "seconds")
-                .format();
-        }
-    }
-    return response;
-}
-
-async function getRoutes(originId, destinationId, fare_options) {
+async function getRoutes(originId, destinationId, fare_options, departingAt) {
     const allRoutes = await generateRoute(originId, destinationId);
 
     const routeOfStation = await sequelize.query(
@@ -256,7 +231,7 @@ async function getRoutes(originId, destinationId, fare_options) {
             let stopsStationDetails = [];
             let line;
 
-            let routeArrivalTime = dayjs("2022-03-22T12:40:00+0700").add(1, "minute");
+            let routeArrivalTime = dayjs(departingAt || undefined).add(1, "minute");
 
             for (individualRoute of groupedRoute) {
                 if (individualRoute.type !== "transfer")
@@ -285,16 +260,21 @@ async function getRoutes(originId, destinationId, fare_options) {
                 tmpResult.schedule = {};
                 tmpResult.schedule.departing_at = routeArrivalTime.format();
                 let stopsArr = individualRoute.stops;
+                let waitDuration = 0;
+                let departingTime, arrivalTime;
 
                 let duration;
                 if (individualRoute.type === "board") {
                     try {
                         let perf = performance.now();
-                        let { tripId } = await getNextTrainTime(
+                        console.log(routeArrivalTime.format());
+                        let { waitTime, tripId } = await getNextTrainTime(
                             stopsArr[0],
                             stopsArr[stopsArr.length - 1],
                             routeArrivalTime,
                         );
+                        waitDuration = waitTime;
+                        console.log(waitTime, "WAIT TIME");
                         console.log("NEXT TRAIN TIME", performance.now() - perf);
                         perf = performance.now();
 
@@ -313,15 +293,24 @@ async function getRoutes(originId, destinationId, fare_options) {
                         breakToMainLoop = true;
                         break;
                     }
+
+                    departingTime = routeArrivalTime.add(waitDuration, "second");
+                    arrivalTime = departingTime.add(duration, "second");
+                    tmpResult.schedule.departing_at = departingTime.format();
+                    tmpResult.schedule.arriving_at = arrivalTime.format();
+                    tmpResult.schedule.duration = duration;
                 } else if (individualRoute.type === "transfer") {
                     let transferDuration = await getTransferTime(stopsArr[0], stopsArr[1]);
                     duration = transferDuration;
+
+                    departingTime = routeArrivalTime.add(waitDuration, "second");
+                    arrivalTime = departingTime.add(duration, "second");
+                    tmpResult.schedule.departing_at = departingTime.format();
+                    tmpResult.schedule.arriving_at = arrivalTime.format();
+                    tmpResult.schedule.duration = duration;
                 }
 
-                routeArrivalTime = routeArrivalTime.add(duration, "second");
-                tmpResult.schedule.arriving_at = routeArrivalTime.format();
-                tmpResult.schedule.duration = duration;
-
+                routeArrivalTime = arrivalTime;
                 direction_result.push(tmpResult);
             }
 

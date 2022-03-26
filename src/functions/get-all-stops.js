@@ -12,10 +12,10 @@ exports.getAllStops = async function () {
         },
     );
 
-    let formattedStops = [];
+    let formattedStops = {};
 
     for (station of allStations) {
-        formattedStops.push({
+        formattedStops[station.stop_id] = {
             stop_id: station.stop_id,
             stop_code: station.stop_code,
             stop_name_en: station.stop_name,
@@ -31,7 +31,7 @@ exports.getAllStops = async function () {
             wheelchair_boarding: station.wheelchair_boarding,
             level_id: station.level_id,
             platform_code: station.platform_code,
-        });
+        };
     }
 
     return formattedStops;
