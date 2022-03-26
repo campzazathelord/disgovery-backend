@@ -84,6 +84,8 @@ exports.getDirectionsFromGoogle = async function (
     const ORIGIN = checkFormat(origin),
         DESTINATION = checkFormat(destination);
 
+    console.log(origin, destination);
+
     if (!ORIGIN || !DESTINATION) return;
 
     if (!mode) mode = "walking";
@@ -106,7 +108,6 @@ exports.getDirectionsFromGoogle = async function (
     let response = {};
 
     // FORMAT RETURNED RESPONSE
-
     if (mode === "walking") response.type = "walk";
     else if (mode === "driving") response.type = "drive";
     else if (mode === "bycicling") response.type = "bike";
@@ -133,7 +134,7 @@ exports.getDirectionsFromGoogle = async function (
                         ? directions.geocoded_waypoints[1].place_id
                         : "",
             },
-            coordinates: directions.routes[0].legs[0].start_location,
+            coordinates: directions.routes[0].legs[0].end_location,
         };
 
         let now = dayjs();
