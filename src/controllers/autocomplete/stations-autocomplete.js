@@ -7,72 +7,78 @@ const { QueryTypes } = require("sequelize");
 exports.getStationAutocomplete = async function getStationAutocomplete(req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
 
-    const query = req.query.query;
-    const max_result = parseInt(req.query.max_result) || 6;
-
-    if (!query) return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
-
-    let stationDetailsResult = [];
-
     try {
-        const stations = search(query, req, max_result);
+        const query = req.query.query;
+        const max_result = parseInt(req.query.max_result) || 6;
 
-        for (station of stations) {
-            let tripsOfStation = await sequelize.query(
-                `
-                select routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, routes.route_color, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${station.item.stop_id}') stop_times
-                    inner join trips on stop_times.trip_id=trips.trip_id
-                    inner join routes on trips.route_id = routes.route_id
-                `,
-                {
-                    type: QueryTypes.SELECT,
-                },
-            );
+        if (!query) return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
 
-            let formattedTripsOfStation = [];
+        const stationData = req.app.get("stops");
 
-            for (trip of tripsOfStation) {
-                formattedTripsOfStation.push({
-                    id: trip.trip_id,
-                    route_id: trip.route_id,
-                    color: trip.route_color,
-                    route_name: {
-                        short_name: trip.route_short_name,
-                        long_name: trip.route_long_name,
-                    },
-                    headsign: trip.trip_headsign,
-                    type: trip.route_type,
-                });
-            }
+        const fuzzyResults = fuzzySearch(stationData, query, max_result);
+        let queryString = "";
 
-            stationDetailsResult.push({
-                station_id: station.stop_id,
+        let responseObject = {};
+
+        Object.keys(fuzzyResults).map((key, index) => {
+            responseObject[fuzzyResults[key].item.stop_id] = {
+                station_id: fuzzyResults[key].item.stop_id,
                 name: {
-                    en: station.item.stop_name_en.trim(),
-                    th: station.item.stop_name_th.trim(),
+                    en: fuzzyResults[key].item.stop_name_en.trim(),
+                    th: fuzzyResults[key].item.stop_name_th.trim(),
                 },
                 location: {
-                    lat: station.item.stop_lat,
-                    lng: station.item.stop_lon,
+                    lat: fuzzyResults[key].item.stop_lat,
+                    lng: fuzzyResults[key].item.stop_lon,
                 },
-                trips: formattedTripsOfStation,
-            });
+                trips: [],
+            };
+
+            if (index === 0) {
+                queryString += `select stop_id, routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, routes.route_color, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${fuzzyResults[key].item.stop_id}') stop_times inner join trips on stop_times.trip_id=trips.trip_id inner join routes on trips.route_id = routes.route_id `;
+            } else {
+                queryString += `union select stop_id, routes.route_id, routes.route_long_name, routes.route_short_name, routes.route_type, routes.route_color, trips.trip_id, trips.trip_headsign from (select * from stop_times where stop_times.stop_id='${fuzzyResults[key].item.stop_id}') stop_times inner join trips on stop_times.trip_id=trips.trip_id inner join routes on trips.route_id = routes.route_id `;
+            }
+        });
+
+        const queriedTrips = await sequelize.query(queryString, { type: QueryTypes.SELECT });
+
+        for (let trip of queriedTrips) {
+            if (responseObject[trip.stop_id]) {
+                responseObject[trip.stop_id].trips = [
+                    ...responseObject[trip.stop_id].trips,
+                    {
+                        route_id: trip[`route_id`],
+                        route_name: {
+                            long_name: trip[`route_long_name`],
+                            short_name: trip[`route_short_name`],
+                        },
+                        type: trip[`route_type`],
+                        color: trip[`route_color`],
+                        headsign: trip[`trip_headsign`],
+                    },
+                ];
+            }
         }
 
-        return res.status(APIStatus.OK.status).send({ data: stationDetailsResult });
+        return res
+            .status(APIStatus.OK.status)
+            .send({ status: APIStatus.OK, data: Object.values(responseObject) });
     } catch (error) {
-        return res.send(error).status(APIStatus.INTERNAL.SERVER_ERROR.status);
+        return res
+            .status(APIStatus.INTERNAL.SERVER_ERROR.status)
+            .send({ status: { status: APIStatus.INTERNAL.SERVER_ERROR.status, message: error } });
     }
 };
 
-function search(query, req, max_result) {
-    if (!query) return [];
-
+function fuzzySearch(arr, str, max_result) {
     const options = {
         includeScore: true,
         keys: ["stop_name_en", "stop_name_th"],
     };
 
-    const fuse = new Fuse(req.app.get("stops"), options);
-    return fuse.search(query, { limit: max_result });
+    const fuse = new Fuse(arr, options);
+
+    const result = fuse.search(str, { limit: max_result || 6 });
+    return result;
 }

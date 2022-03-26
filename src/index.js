@@ -7,6 +7,8 @@ const { getAllStops } = require("./functions/get-all-stops");
 const { getAdjacency } = require("./functions/get-adjacency");
 const router = require("./routers/routers");
 const cors = require("cors");
+const { getAllRoutes } = require("./functions/get-all-routes");
+const { getAllStopsOfRoutes } = require("./functions/get-all-stops-of-route");
 
 checkStructEnv();
 
@@ -21,6 +23,8 @@ sequelize
     .then(async () => {
         await (async () => {
             app.set("stops", await getAllStops());
+            app.set("routes", await getAllRoutes());
+            app.set("allStopsOfRoutes", await getAllStopsOfRoutes());
         })();
 
         await (async () => {

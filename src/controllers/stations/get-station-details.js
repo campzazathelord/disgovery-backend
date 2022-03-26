@@ -94,7 +94,7 @@ exports.getStationDetails = async function getStationDetails(req, res) {
         if (textArray.includes("lines")) {
             linesInStation = await sequelize.query(
                 `
-            select trips.trip_id, trips.trip_headsign, trips.route_id, routes.route_short_name, routes.route_long_name, routes.route_color, routes.route_type, destination.stop_id as destination_id, destination_details.stop_name as destination_name, translations.translation as destination_name_th, destination_details.stop_code as destination_code, (headway_secs * ceiling((time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in from stop_times current
+            select trips.trip_id, trips.trip_headsign, trips.route_id, routes.route_short_name, routes.route_long_name, routes.route_color, routes.route_type, destination.stop_id as destination_id, destination_details.stop_name as destination_name, translations.translation as destination_name_th, destination_details.stop_code as destination_code, frequencies.headway_secs, sec_to_time(time_to_sec(time(frequencies.end_time)) + time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) as scheduled_until, (headway_secs * ceiling((time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) / headway_secs)) - (time_to_sec(time('${timeNowString}')) - (time_to_sec(time(current.arrival_time)) - time_to_sec(time(head.arrival_time))) - time_to_sec(time(start_time))) as arriving_in from stop_times current
                 inner join stop_times head on head.stop_sequence=1 and current.trip_id=head.trip_id and current.stop_id='${stationId}'
                 inner join (select trip_id, stop_id, max(stop_sequence) as max_sequence from stop_times group by trip_id) as destination_sequence on current.trip_id=destination_sequence.trip_id
                 inner join stop_times destination on destination_sequence.max_sequence=destination.stop_sequence and current.trip_id=destination.trip_id
@@ -164,6 +164,8 @@ exports.getStationDetails = async function getStationDetails(req, res) {
             route_type: linesInStation[key].route_type,
             trip_id: linesInStation[key].trip_id,
             headsign: linesInStation[key].headsign,
+            headway_secs: linesInStation[key].headway_secs,
+            scheduled_until: linesInStation[key].scheduled_until,
             arriving_in: linesInStation[key].arriving_in,
             destination: {
                 id: linesInStation[key].destination_id,

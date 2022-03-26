@@ -40,7 +40,7 @@ exports.getRoutes = async function (req, res) {
         if (origin.length <= 1 || destination.length <= 1)
             return res.status(APIStatus.BAD_REQUEST.status).send({
                 status: APIStatus.BAD_REQUEST.status,
-                message: "หัดใส่ข้อมูลให้ถูกๆดิไอ้หน้าเหี้ย",
+                message: "Invalid origin or destination strings",
             });
     } catch (error) {
         logger.error(error);
@@ -90,7 +90,7 @@ exports.getRoutes = async function (req, res) {
     for (let i = response.length; i > directionsNumber; i--) {
         response.pop();
     }
-    
+
     //checks for dupe route (same Directions) and removes it
     // for (let i = 0; i<response.length;i++){
     //     for(let j = i+1; j<response.length;j++){
@@ -98,19 +98,24 @@ exports.getRoutes = async function (req, res) {
     //             console.log('SameDirections');
     //             response.splice(j,1);
     //             j--
-    //         } 
+    //         }
     //     }
     // }
 
     //console.log(response,'RESPONSE BEFORE');
-    response = await addDirectionsFromGoogle(response, originType, destinationType, origin, destination);
+    response = await addDirectionsFromGoogle(
+        response,
+        originType,
+        destinationType,
+        origin,
+        destination,
+    );
     //console.log(response,'RESPONSE AFTER');
 
     return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: response });
 };
 
 async function addDirectionsFromGoogle(response, originType, destinationType, origin, destination) {
-
     for (let direction of response) {
         if (originType === "coordinates") {
             // console.log(formatLatLng(origin[1]),"formatLatLng(origin[1])");
@@ -143,11 +148,13 @@ async function addDirectionsFromGoogle(response, originType, destinationType, or
             );
         }
 
-        if(originType === "google" || originType === "coordinates"){
+        if (originType === "google" || originType === "coordinates") {
             let originWalkDuration = direction.directions[0].schedule.duration;
-            console.log('originWalkDuration:',originWalkDuration);
+            console.log("originWalkDuration:", originWalkDuration);
             direction.schedule.duration += originWalkDuration;
-            direction.schedule.arriving_at = dayjs(direction.schedule.arriving_at).add(originWalkDuration,"seconds").format();
+            direction.schedule.arriving_at = dayjs(direction.schedule.arriving_at)
+                .add(originWalkDuration, "seconds")
+                .format();
         }
 
         if (destinationType === "coordinates") {
@@ -158,7 +165,8 @@ async function addDirectionsFromGoogle(response, originType, destinationType, or
                     {
                         type: "coordinates",
                         //coordinates: direction.origin.coordinates,
-                        coordinates: direction.directions[direction.directions.length-1].to.coordinates,
+                        coordinates:
+                            direction.directions[direction.directions.length - 1].to.coordinates,
                     },
                     {
                         type: "coordinates",
@@ -181,11 +189,14 @@ async function addDirectionsFromGoogle(response, originType, destinationType, or
             );
         }
 
-        if(destinationType === "google" || destinationType === "coordinates"){
-            let destinationWalkDuration = direction.directions[direction.directions.length-1].schedule.duration;
-            console.log('destinationWalkDuration:',destinationWalkDuration);
+        if (destinationType === "google" || destinationType === "coordinates") {
+            let destinationWalkDuration =
+                direction.directions[direction.directions.length - 1].schedule.duration;
+            console.log("destinationWalkDuration:", destinationWalkDuration);
             direction.schedule.duration += destinationWalkDuration;
-            direction.schedule.arriving_at = dayjs(direction.schedule.arriving_at).add(destinationWalkDuration,"seconds").format();
+            direction.schedule.arriving_at = dayjs(direction.schedule.arriving_at)
+                .add(destinationWalkDuration, "seconds")
+                .format();
         }
     }
     return response;
@@ -388,12 +399,14 @@ async function getRoutes(originId, destinationId, fare_options) {
     return resultArr;
 }
 
-function formatLatLng(unformatted){
-    latLng = unformatted.split(',')
+function formatLatLng(unformatted) {
+    latLng = unformatted.split(",");
     return {
-        lat:latLng[0],
-        lng:latLng[1],
+        lat: latLng[0],
+        lng: latLng[1],
     };
 }
 
-function checkDirections(res1,res2) {return JSON.stringify(res1.directions) === JSON.stringify(res2.directions)}
+function checkDirections(res1, res2) {
+    return JSON.stringify(res1.directions) === JSON.stringify(res2.directions);
+}
