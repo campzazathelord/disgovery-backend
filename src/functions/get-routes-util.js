@@ -172,7 +172,7 @@ exports.getTotalFares = function (allFares) {
 exports.getNearbyStations = async function (stationArray) {
     const RADIUS_STEP = 5000;
     const MAX_RADIUS = 30000;
-    const MAX_NEARBY_STATIONS = 2;
+    const MAX_NEARBY_STATIONS = 1;
     let result = [];
 
     if (stationArray[0] === "coordinates") {
