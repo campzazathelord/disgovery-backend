@@ -18,7 +18,7 @@ const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "frida
  * @param {OriginToDestinationObject[]} arrayOfOriginsToDestinations
  * @param {Array} fareOptions
  */
-exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOptions) {
+exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOptions, allStops) {
     let unionFaresString = "";
     Object.keys(arrayOfOriginsToDestinations).map((key, iteration) => {
         if (iteration === 0) {
@@ -27,6 +27,8 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
             unionFaresString += ` union select origin_id, destination_id, fare_id from fare_rules where origin_id='${arrayOfOriginsToDestinations[key].origin_id}' and destination_id='${arrayOfOriginsToDestinations[key].destination_id}'`;
         }
     });
+
+    if (!unionFaresString) return [];
 
     const allFares = await sequelize.query(
         `
@@ -46,12 +48,20 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
             allStations.push(arrayOfOriginsToDestinations[key].destination_id);
     });
 
-    const allStationsDetails = await getArrayOfStationDetails(allStations);
-    const allStationsDetailsObject = {};
+    let allStationsDetails = [];
+    let allStationsDetailsObject = {};
 
-    Object.keys(allStationsDetails).map((key) => {
-        allStationsDetailsObject[allStationsDetails[key].station.id] = allStationsDetails[key];
-    });
+    if (!allStops) {
+        let allStationsDetails = await getArrayOfStationDetails(allStations);
+
+        Object.keys(allStationsDetails).map((key) => {
+            allStationsDetailsObject[allStationsDetails[key].station.id] = allStationsDetails[key];
+        });
+    } else {
+        for (let station of allStations) {
+            allStationsDetailsObject[station] = formatStop(allStops[station]);
+        }
+    }
 
     let currentOrigin = "",
         currentDestination = "";
@@ -108,6 +118,27 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
     return response;
 };
 
+function formatStop(stop) {
+    try {
+        return {
+            station: {
+                id: stop.stop_id,
+                code: stop.stop_code,
+                name: {
+                    en: stop.stop_name_en,
+                    th: stop.stop_name_th,
+                },
+            },
+            coordinates: {
+                lat: parseFloat(stop.stop_lat),
+                lng: parseFloat(stop.stop_lon),
+            },
+        };
+    } catch (error) {
+        return {};
+    }
+}
+
 exports.getTotalFares = function (allFares) {
     let totalFares = {};
 
@@ -130,7 +161,7 @@ exports.getTotalFares = function (allFares) {
 exports.getNearbyStations = async function (stationArray) {
     const RADIUS_STEP = 5000;
     const MAX_RADIUS = 30000;
-    const MAX_NEARBY_STATIONS = 1;
+    const MAX_NEARBY_STATIONS = 2;
     let result = [];
 
     if (stationArray[0] === "coordinates") {
