@@ -17,6 +17,10 @@ const { getAllTripsOfStop } = require("../controllers/internal/get-all-trips-of-
 const { getAllPlatformsOfStop } = require("../controllers/internal/get-platforms-of-stop");
 const { getRawStopDetails } = require("../controllers/internal/get-raw-stop-details");
 const { addPlatform } = require("../controllers/internal/add-platform");
+const {
+    getEmptyTransfersOfPlatform,
+} = require("../controllers/internal/get-empty-transfers-of-platforms");
+const { addTransfers } = require("../controllers/internal/add-transfers");
 
 const formUrlEncoded = (x) =>
     Object.keys(x).reduce((p, c) => p + `&${c}=${encodeURIComponent(x[c])}`, "");
@@ -41,6 +45,8 @@ router.get("/internal/get-all-trips-of-stop", getAllTripsOfStop); // INTERNAL GE
 router.get("/internal/get-all-platforms-of-stop", getAllPlatformsOfStop); // INTERNAL GET ALL PLATFORMS OF STOP
 router.get("/internal/get-raw-stop-details", getRawStopDetails); // INTERNAL GET RAW STOP DETAILS
 router.post("/internal/add-platform", addPlatform); // INTERNAL ADD PLATFORM
+router.get("/internal/get-empty-transfers-of-platforms", getEmptyTransfersOfPlatform); // INTERNAL GET EMPTY TRANSFERS OF PLATFORMS
+router.post("/internal/add-transfers", addTransfers); // INTERNAL ADD TRANSFERS
 
 router.post("/:id/test", test);
 
