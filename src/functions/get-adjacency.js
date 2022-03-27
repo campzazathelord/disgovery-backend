@@ -1,6 +1,8 @@
 const { QueryTypes } = require("sequelize");
 const sequelize = require("../db/database");
 const fs = require("fs");
+const app = require("..");
+const { getAllTransfers } = require("./get-all-transfers");
 
 exports.getAdjacency = async function () {
     let adjacencyListMatrix = {};
@@ -27,9 +29,7 @@ exports.getAdjacency = async function () {
         },
     );
 
-    const allTransfers = await sequelize.query(`SELECT * FROM transfers;`, {
-        type: QueryTypes.SELECT,
-    });
+    const allTransfers = await getAllTransfers();
 
     for (let station of allStations) {
         if (!adjacencyListMatrix[station.stop_id]) adjacencyListMatrix[station.stop_id] = [];
@@ -92,17 +92,17 @@ exports.getAdjacency = async function () {
         }
     }
 
-    for (let transfer of allTransfers) {
-        if (!Object.keys(adjacencyListMatrix).includes(transfer.from_stop_id)) continue;
-
-        adjacencyListMatrix[transfer.from_stop_id] = [
-            ...adjacencyListMatrix[transfer.from_stop_id],
-            {
-                node: transfer.to_stop_id,
-                weight: transfer.min_transfer_time,
-            },
-        ];
-    }
+    Object.keys(allTransfers).map((key) => {
+        if (Object.keys(adjacencyListMatrix).includes(allTransfers[key].from_stop_id)) {
+            adjacencyListMatrix[allTransfers[key].from_stop_id] = [
+                ...adjacencyListMatrix[allTransfers[key].from_stop_id],
+                {
+                    node: allTransfers[key].to_stop_id,
+                    weight: allTransfers[key].min_transfer_time,
+                },
+            ];
+        }
+    });
 
     fs.writeFileSync("./src/db/adjacency-matrix.json", JSON.stringify(adjacencyListMatrix));
 };

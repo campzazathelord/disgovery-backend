@@ -49,8 +49,10 @@ exports.getRoutes = async function (req, res) {
             });
         }
 
-        let originStationIds = await getNearbyStations(origin);
-        let destinationStationIds = await getNearbyStations(destination);
+        const allTransfers = req.app.get("transfers");
+
+        let originStationIds = await getNearbyStations(origin, allTransfers);
+        let destinationStationIds = await getNearbyStations(destination, allTransfers);
         let originType = origin[0];
         let destinationType = destination[0];
         let googleDirections = {};
@@ -157,6 +159,7 @@ exports.getRoutes = async function (req, res) {
                         allStops,
                         routeOfStation,
                         allLinesOfNodes,
+                        allTransfers,
                     )),
                 );
                 console.log("----- FOUND ROUTE IN", performance.now() - perf);
@@ -265,6 +268,7 @@ async function getRoutes(
     allStops,
     routeOfStation,
     allLinesOfNodes,
+    allTransfers,
 ) {
     let now = performance.now();
     const allRoutes = await generateRoute(originId, destinationId, allLinesOfNodes);
@@ -429,7 +433,11 @@ async function getRoutes(
                     let transferDuration = 0;
 
                     if (!cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`]) {
-                        transferDuration = await getTransferTime(stopsArr[0], stopsArr[1]);
+                        transferDuration = await getTransferTime(
+                            stopsArr[0],
+                            stopsArr[1],
+                            allTransfers,
+                        );
                         cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`] = transferDuration;
                     } else {
                         transferDuration = cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`];

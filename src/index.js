@@ -10,6 +10,7 @@ const cors = require("cors");
 const { getAllRoutes } = require("./functions/get-all-routes");
 const { getAllStopsOfRoutes } = require("./functions/get-all-stops-of-route");
 const { getAllLinesOfNodes } = require("./functions/get-all-lines-of-node");
+const { getAllTransfers } = require("./functions/get-all-transfers");
 
 checkStructEnv();
 
@@ -27,6 +28,7 @@ sequelize
             app.set("routes", await getAllRoutes());
             app.set("allStopsOfRoutes", await getAllStopsOfRoutes());
             app.set("allLinesOfNodes", await getAllLinesOfNodes());
+            app.set("transfers", await getAllTransfers());
         })();
 
         await (async () => {
@@ -40,3 +42,5 @@ sequelize
     .catch((e) => {
         logger.error("ERROR: " + e);
     });
+
+module.exports = app;

@@ -169,7 +169,7 @@ exports.getTotalFares = function (allFares) {
     return totalFares;
 };
 
-exports.getNearbyStations = async function (stationArray) {
+exports.getNearbyStations = async function (stationArray, allTransfers) {
     const RADIUS_STEP = 5000;
     const MAX_RADIUS = 30000;
     const MAX_NEARBY_STATIONS = 1;
@@ -192,7 +192,11 @@ exports.getNearbyStations = async function (stationArray) {
 
                     for (let i = 0; i < result.length; i++) {
                         for (let j = i + 1; j < result.length; j++) {
-                            let transferTime = await getTransferTime(result[i], result[j]);
+                            let transferTime = await getTransferTime(
+                                result[i],
+                                result[j],
+                                allTransfers,
+                            );
                             if (transferTime > 0) {
                                 console.log("Transfer Detected");
                                 result.splice(j, 1);
@@ -430,24 +434,33 @@ exports.timeBetweenStation = async function (stop1, stop2, tripId) {
     return parseFloat(timeBtwStation[0].boarding_time);
 };
 
-async function getTransferTime(stop1, stop2) {
-    const transferTime = await sequelize.query(
-        `
-        SELECT min_transfer_time
-        FROM transfers
-        WHERE from_stop_id = '${stop1}' and to_stop_id = '${stop2}';
-        `,
-        {
-            type: QueryTypes.SELECT,
-            maxResult: 1,
-        },
-    );
+async function getTransferTime(stop1, stop2, allTransfers) {
+    let transferTime;
 
-    if (transferTime[0]) return transferTime[0].min_transfer_time || 0;
-    else return 0;
+    if (!allTransfers) {
+        transferTime = await sequelize.query(
+            `
+            SELECT min_transfer_time
+            FROM transfers
+            WHERE from_stop_id = '${stop1}' and to_stop_id = '${stop2}';
+            `,
+            {
+                type: QueryTypes.SELECT,
+                maxResult: 1,
+            },
+        );
+        if (transferTime[0]) return transferTime[0].min_transfer_time || 0;
+        else return 0;
+    } else {
+        transferTime = allTransfers[`${stop1}__${stop2}`];
+
+        if (transferTime) return transferTime.min_transfer_time || 0;
+        else return 0;
+    }
 }
 
-exports.getTransferTime = async (input1, input2) => await getTransferTime(input1, input2);
+exports.getTransferTime = async (input1, input2, allTransfers) =>
+    await getTransferTime(input1, input2, allTransfers);
 
 async function toISOString(input) {
     let splittedTime = {
