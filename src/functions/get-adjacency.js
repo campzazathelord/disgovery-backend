@@ -3,7 +3,7 @@ const sequelize = require("../db/database");
 const fs = require("fs");
 
 exports.getAdjacency = async function () {
-    const adjacencyListMatrix = {};
+    let adjacencyListMatrix = {};
     const allStations = await sequelize.query(
         `
         SELECT route_id, trip_id ,stop_id , (timeInSec - prevTimeInSec) AS timeFromPrevStopSeqInSec, stop_sequence
@@ -32,10 +32,14 @@ exports.getAdjacency = async function () {
     });
 
     for (let station of allStations) {
-        adjacencyListMatrix[station.stop_id] = [];
+        if (!adjacencyListMatrix[station.stop_id]) adjacencyListMatrix[station.stop_id] = [];
 
         for (let i = 0; i < allStations.length; i++) {
-            if (allStations[i].stop_id !== station.stop_id) continue;
+            if (
+                allStations[i].stop_id !== station.stop_id ||
+                allStations[i].trip_id !== station.trip_id
+            )
+                continue;
 
             if (allStations[i].timeFromPrevStopSeqInSec === null) {
                 adjacencyListMatrix[station.stop_id] = [
@@ -48,23 +52,38 @@ exports.getAdjacency = async function () {
 
                 break;
             } else {
-                adjacencyListMatrix[station.stop_id] = [
-                    ...adjacencyListMatrix[station.stop_id],
-                    {
-                        node: allStations[i - 1].stop_id,
-                        weight: allStations[i].timeFromPrevStopSeqInSec,
-                    },
-                ];
+                let previousIsRepeated = false;
+
+                for (let matrix of adjacencyListMatrix[station.stop_id]) {
+                    if (allStations[i - 1].stop_id === matrix.node) previousIsRepeated = true;
+                }
+
+                if (!previousIsRepeated)
+                    adjacencyListMatrix[station.stop_id] = [
+                        ...adjacencyListMatrix[station.stop_id],
+                        {
+                            node: allStations[i - 1].stop_id,
+                            weight: allStations[i].timeFromPrevStopSeqInSec,
+                        },
+                    ];
 
                 if (i !== allStations.length - 1) {
-                    if (allStations[i].trip_id === allStations[i + 1].trip_id) {
-                        adjacencyListMatrix[station.stop_id] = [
-                            ...adjacencyListMatrix[station.stop_id],
-                            {
-                                node: allStations[i + 1].stop_id,
-                                weight: station.timeFromPrevStopSeqInSec,
-                            },
-                        ];
+                    let nextIsRepeated = false;
+
+                    for (let matrix of adjacencyListMatrix[station.stop_id]) {
+                        if (allStations[i + 1].stop_id === matrix.node) nextIsRepeated = true;
+                    }
+
+                    if (!nextIsRepeated) {
+                        if (allStations[i].trip_id === allStations[i + 1].trip_id) {
+                            adjacencyListMatrix[station.stop_id] = [
+                                ...adjacencyListMatrix[station.stop_id],
+                                {
+                                    node: allStations[i + 1].stop_id,
+                                    weight: station.timeFromPrevStopSeqInSec,
+                                },
+                            ];
+                        }
                     }
                 }
 
