@@ -9,6 +9,7 @@ const router = require("./routers/routers");
 const cors = require("cors");
 const { getAllRoutes } = require("./functions/get-all-routes");
 const { getAllStopsOfRoutes } = require("./functions/get-all-stops-of-route");
+const { getAllLinesOfNodes } = require("./functions/get-all-lines-of-node");
 
 checkStructEnv();
 
@@ -25,6 +26,7 @@ sequelize
             app.set("stops", await getAllStops());
             app.set("routes", await getAllRoutes());
             app.set("allStopsOfRoutes", await getAllStopsOfRoutes());
+            app.set("allLinesOfNodes", await getAllLinesOfNodes());
         })();
 
         await (async () => {

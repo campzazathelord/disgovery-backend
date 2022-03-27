@@ -45,7 +45,7 @@ exports.getRoutes = async function (req, res) {
             logger.error(error);
             return res.status(APIStatus.BAD_REQUEST.status).send({
                 status: APIStatus.BAD_REQUEST.status,
-                message: "An origin should be a string.",
+                message: "Invalid origin or destination strings",
             });
         }
 
@@ -54,8 +54,6 @@ exports.getRoutes = async function (req, res) {
         let originType = origin[0];
         let destinationType = destination[0];
         let googleDirections = {};
-
-        console.log(originStationIds, destinationStationIds);
 
         if (!originStationIds || !destinationStationIds)
             return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
@@ -66,6 +64,7 @@ exports.getRoutes = async function (req, res) {
         if (originType === "coordinates") {
             for (let originId of originStationIds) {
                 let originCoordinates = origin[1].split(",");
+
                 let perf = performance.now();
                 googleDirections[originId] = await getDirectionsFromGoogle(
                     {
@@ -90,6 +89,7 @@ exports.getRoutes = async function (req, res) {
         if (destinationType === "coordinates") {
             for (let destinationId of destinationStationIds) {
                 let destinationCoordinates = destination[1].split(",");
+
                 let perf = performance.now();
 
                 googleDirections[destinationId] = await getDirectionsFromGoogle(
@@ -139,6 +139,8 @@ exports.getRoutes = async function (req, res) {
             },
         );
 
+        const allLinesOfNodes = req.app.get("allLinesOfNodes");
+
         for (let originStationId of originStationIds) {
             for (let destinationStationId of destinationStationIds) {
                 perf = performance.now();
@@ -154,6 +156,7 @@ exports.getRoutes = async function (req, res) {
                             : undefined || undefined,
                         allStops,
                         routeOfStation,
+                        allLinesOfNodes,
                     )),
                 );
                 console.log("----- FOUND ROUTE IN", performance.now() - perf);
@@ -261,9 +264,10 @@ async function getRoutes(
     departingAt,
     allStops,
     routeOfStation,
+    allLinesOfNodes,
 ) {
     let now = performance.now();
-    const allRoutes = await generateRoute(originId, destinationId);
+    const allRoutes = await generateRoute(originId, destinationId, allLinesOfNodes);
     console.log("------- GEN ROUTE", performance.now() - now);
 
     let routeOfStationObj = {};

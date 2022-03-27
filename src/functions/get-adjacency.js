@@ -8,7 +8,7 @@ exports.getAdjacency = async function () {
         `
         SELECT route_id, trip_id ,stop_id , (timeInSec - prevTimeInSec) AS timeFromPrevStopSeqInSec, stop_sequence
         FROM    (SELECT route_id, stop_times.trip_id AS trip_id, stop_id, TIME_TO_SEC(arrival_time) AS timeInSec,
-                    LAG(TIME_TO_SEC(arrival_time)) OVER (PARTITION BY route_id ORDER BY stop_sequence) AS prevTimeInSec , stop_sequence
+                    LAG(TIME_TO_SEC(arrival_time)) OVER (PARTITION BY route_id,trip_id ORDER BY stop_sequence) AS prevTimeInSec , stop_sequence
                 FROM (  SELECT trip_id, route_id, maxStopSequence
                         FROM (  SELECT trips.trip_id, route_id , maxStopSequence, ROW_NUMBER() over (PARTITION BY route_id ORDER BY maxStopSequence DESC ) AS rowNumber
                                 FROM (  SELECT trip_id, MAX(stop_sequence) AS maxStopSequence
@@ -16,9 +16,10 @@ exports.getAdjacency = async function () {
                                         GROUP BY trip_id) AS trip_id_maxstopseq
                                 INNER JOIN trips
                                 ON trips.trip_id = trip_id_maxstopseq.trip_id) AS trips_route_maxstopseq
-                        WHERE rowNumber = 1) AS trip_route_maxstopseq
+                        WHERE rowNumber = 1 OR rowNumber = 2) AS trip_route_maxstopseq
                 INNER JOIN stop_times
-                ON trip_route_maxstopseq.trip_id = stop_times.trip_id) AS all_stops_with_time
+                ON trip_route_maxstopseq.trip_id = stop_times.trip_id
+                ORDER BY trip_id,stop_sequence) AS all_stops_with_time
         ORDER BY trip_id,stop_sequence;
         `,
         {
