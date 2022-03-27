@@ -330,6 +330,7 @@ async function getRoutes(
                 if (tmpResult.type === "board") {
                     tmpResult.via_line = {
                         id: line.route_id,
+                        type: line.route_type,
                         name: {
                             short_name: line.route_short_name,
                             long_name: line.route_long_name,
