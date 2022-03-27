@@ -9,7 +9,7 @@ exports.addPlatform = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
 
     const tripsToUpdate = req.body.trips_to_update || [];
-    console.log(tripsToUpdate);
+    logger.info(tripsToUpdate);
 
     if (tripsToUpdate.length === 0) {
         return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
@@ -101,10 +101,8 @@ exports.addPlatform = async function (req, res) {
         });
     } catch (error) {
         logger.error(error.message);
-        return res
-            .status(APIStatus.INTERNAL.SERVER_ERROR.status)
-            .send({
-                status: { status: APIStatus.INTERNAL.SERVER_ERROR.status, message: error.message },
-            });
+        return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
+            status: { status: APIStatus.INTERNAL.SERVER_ERROR.status, message: error.message },
+        });
     }
 };
