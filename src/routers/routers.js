@@ -21,6 +21,7 @@ const {
     getEmptyTransfersOfPlatform,
 } = require("../controllers/internal/get-empty-transfers-of-platforms");
 const { addTransfers } = require("../controllers/internal/add-transfers");
+const { removePlatform } = require("../controllers/internal/remove-platform");
 
 const formUrlEncoded = (x) =>
     Object.keys(x).reduce((p, c) => p + `&${c}=${encodeURIComponent(x[c])}`, "");
@@ -47,6 +48,7 @@ router.get("/internal/get-raw-stop-details", getRawStopDetails); // INTERNAL GET
 router.post("/internal/add-platform", addPlatform); // INTERNAL ADD PLATFORM
 router.get("/internal/get-empty-transfers-of-platforms", getEmptyTransfersOfPlatform); // INTERNAL GET EMPTY TRANSFERS OF PLATFORMS
 router.post("/internal/add-transfers", addTransfers); // INTERNAL ADD TRANSFERS
+router.post("/internal/remove-platform", removePlatform); // INTERNAL REMOVE PLATFORM
 
 router.post("/:id/test", test);
 
