@@ -169,10 +169,10 @@ exports.getTotalFares = function (allFares) {
     return totalFares;
 };
 
-exports.getNearbyStations = async function (stationArray, allTransfers) {
+exports.getNearbyStations = async function (stationArray, allTransfers, allStops) {
     const RADIUS_STEP = 5000;
     const MAX_RADIUS = 30000;
-    const MAX_NEARBY_STATIONS = 1;
+    const MAX_NEARBY_STATIONS = 2;
     let result = [];
 
     if (stationArray[0] === "coordinates") {
@@ -205,7 +205,14 @@ exports.getNearbyStations = async function (stationArray, allTransfers) {
                         }
                     }
 
-                    return result;
+                    let childrenStops = [];
+                    for (let i in result) {
+                        childrenStops.push(...getChildrenStops(result[i], allStops));
+                    }
+
+                    childrenStops = [...new Set(childrenStops)];
+
+                    return childrenStops;
                 }
             }
         } catch (error) {
@@ -213,28 +220,35 @@ exports.getNearbyStations = async function (stationArray, allTransfers) {
             throw error;
         }
     } else if (stationArray[0] === "station") {
-        let station = stationArray[1];
-        return [station];
+        let childrenStops = getChildrenStops(stationArray[1], allStops);
+
+        return childrenStops;
     }
 
     return [];
 };
 
-function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-    var R = 6371;
-    var dLat = deg2rad(lat2 - lat1);
-    var dLon = deg2rad(lon2 - lon1);
-    var a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    var d = R * c * 1000;
-    return d; // DISTANCE IN METRES
+function getChildrenStops(parentStation, allStops) {
+    if (!allStops || !parentStation) return [];
+
+    if (allStops[parentStation].parent_station !== null) {
+        parentStation = allStops[parentStation].parent_station;
+    }
+
+    let childrenStops = [];
+
+    for (let key in allStops) {
+        if (allStops[key].parent_station === parentStation) {
+            childrenStops.push(key);
+        }
+    }
+
+    childrenStops = [...new Set(childrenStops)];
+
+    return childrenStops;
 }
 
-function deg2rad(deg) {
-    return deg * (Math.PI / 180);
-}
+exports.getChildrenStops = getChildrenStops;
 
 exports.groupByRoute = function (realRoutes) {
     let firstStation, lastStation, currentRoute;
@@ -242,6 +256,9 @@ exports.groupByRoute = function (realRoutes) {
     let subResult = [];
     let superResult = [];
     //iterate through each path generated from algorithm
+
+    if (!realRoutes[0]) return [];
+
     firstStation = realRoutes[0].stop_id; //stop_id of the first station in path[i]
     lastStation = realRoutes[0].stop_id;
     currentRoute = realRoutes[0].route_id; //set currentRoute to route_id of first station

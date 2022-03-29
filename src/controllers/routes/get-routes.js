@@ -51,11 +51,12 @@ exports.getRoutes = async function (req, res) {
 
         const allTransfers = req.app.get("transfers");
 
-        let originStationIds = await getNearbyStations(origin, allTransfers);
-        let destinationStationIds = await getNearbyStations(destination, allTransfers);
+        let originStationIds = await getNearbyStations(origin, allTransfers, allStops);
+        let destinationStationIds = await getNearbyStations(destination, allTransfers, allStops);
         let originType = origin[0];
         let destinationType = destination[0];
         let googleDirections = {};
+        let directionsFetched = [];
 
         if (!originStationIds || !destinationStationIds)
             return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
@@ -65,6 +66,8 @@ exports.getRoutes = async function (req, res) {
 
         if (originType === "coordinates") {
             for (let originId of originStationIds) {
+                if (directionsFetched.includes(allStops[originId].parent_station)) continue;
+
                 let originCoordinates = origin[1].split(",");
 
                 let perf = performance.now();
@@ -84,12 +87,15 @@ exports.getRoutes = async function (req, res) {
                         },
                     },
                 );
+                directionsFetched.push(allStops[originId].parent_station);
                 console.log("GOOGLE ORIGIN", performance.now() - perf);
             }
         }
 
         if (destinationType === "coordinates") {
             for (let destinationId of destinationStationIds) {
+                if (directionsFetched.includes(allStops[destinationId].parent_station)) continue;
+
                 let destinationCoordinates = destination[1].split(",");
 
                 let perf = performance.now();
@@ -110,6 +116,7 @@ exports.getRoutes = async function (req, res) {
                         },
                     },
                 );
+                directionsFetched.push(allStops[destinationId].parent_station);
                 console.log("GOOGLE DEST", performance.now() - perf);
             }
         }
@@ -247,7 +254,7 @@ exports.getRoutes = async function (req, res) {
 
         return res.status(APIStatus.OK.status).send({ status: APIStatus.OK, data: response });
     } catch (error) {
-        logger.error(error.message);
+        logger.error(`${error.message}`);
         return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
             status: APIStatus.INTERNAL.SERVER_ERROR.status,
             message: "Something went wrong",
@@ -271,8 +278,11 @@ async function getRoutes(
     allTransfers,
 ) {
     let now = performance.now();
+    console.log(originId, destinationId);
     const allRoutes = await generateRoute(originId, destinationId, allLinesOfNodes);
     console.log("------- GEN ROUTE", performance.now() - now);
+
+    if (!allRoutes || allRoutes.length === 0) return [];
 
     let routeOfStationObj = {};
     for (let routeObj of routeOfStation) {
@@ -293,11 +303,16 @@ async function getRoutes(
         realRoutes.push(tmp);
     }
 
+    if (!realRoutes || realRoutes.length === 0) return [];
+
     let result;
     let resultArr = [];
     let breakToMainLoop = false;
 
     for (let i = 0; i < realRoutes.length; i++) {
+        if (realRoutes[i].length === 0) continue;
+        if (!realRoutes[i][0] || !realRoutes[i][realRoutes[i].length - 1]) continue;
+
         result = {};
 
         groupedRoutes = groupByRoute(realRoutes[i]);

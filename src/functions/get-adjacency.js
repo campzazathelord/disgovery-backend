@@ -4,6 +4,8 @@ const fs = require("fs");
 const app = require("..");
 const { getAllTransfers } = require("./get-all-transfers");
 
+const TRANSFER_PENALTY = 10000;
+
 exports.getAdjacency = async function () {
     let adjacencyListMatrix = {};
     const allStations = await sequelize.query(
@@ -28,6 +30,12 @@ exports.getAdjacency = async function () {
             type: QueryTypes.SELECT,
         },
     );
+
+    let allStationsObject = {};
+
+    for (let station of allStations) {
+        allStationsObject[station.stop_id] = station;
+    }
 
     const allTransfers = await getAllTransfers();
 
@@ -98,7 +106,12 @@ exports.getAdjacency = async function () {
                 ...adjacencyListMatrix[allTransfers[key].from_stop_id],
                 {
                     node: allTransfers[key].to_stop_id,
-                    weight: allTransfers[key].min_transfer_time,
+                    weight:
+                        allTransfers[key].min_transfer_time +
+                        (allStationsObject[allTransfers[key].from_stop_id].route_id !==
+                        allStationsObject[allTransfers[key].to_stop_id].route_id
+                            ? 0
+                            : TRANSFER_PENALTY),
                 },
             ];
         }
