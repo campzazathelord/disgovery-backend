@@ -1,12 +1,7 @@
 const { logger } = require("../../configs/config");
 const sequelize = require("../../db/database");
-const Sequelize = require("sequelize");
-const { Op, QueryTypes } = require("sequelize");
+const { QueryTypes } = require("sequelize");
 const APIStatus = require("../../configs/api-errors");
-const Stop = require("../../models/Stop");
-const Route = require("../../models/Route");
-const Trip = require("../../models/Trip");
-const StopTime = require("../../models/StopTime");
 const dayjs = require("dayjs");
 const { getGTFSFormattedCurrentTime } = require("../../functions/get-gtfs-formatted-current-time");
 

@@ -1,7 +1,6 @@
 const { QueryTypes } = require("sequelize");
 const sequelize = require("../db/database");
 const fs = require("fs");
-const app = require("..");
 const { getAllTransfers } = require("./get-all-transfers");
 
 const TRANSFER_PENALTY = 10000;

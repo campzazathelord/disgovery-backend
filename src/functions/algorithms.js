@@ -1,7 +1,5 @@
 const fs = require("fs");
 const { logger } = require("../configs/config");
-const { QueryTypes } = require("sequelize");
-const sequelize = require("../db/database");
 
 const maxReturnArr = 6;
 

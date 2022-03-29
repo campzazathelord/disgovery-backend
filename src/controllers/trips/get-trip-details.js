@@ -4,7 +4,6 @@ const dayjs = require("dayjs");
 const { logger } = require("../../configs/config");
 const APIStatus = require("../../configs/api-errors");
 const { getGTFSFormattedCurrentTime } = require("../../functions/get-gtfs-formatted-current-time");
-const Stop = require("../../models/Stop");
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const MAX_DEPARTED_STATIONS = 5;
