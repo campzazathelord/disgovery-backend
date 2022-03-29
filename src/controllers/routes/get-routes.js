@@ -323,7 +323,7 @@ async function getRoutes(
             let stopsStationDetails = [];
             let line;
 
-            let routeArrivalTime = dayjs("2022-03-29T15:16:04+0700" || undefined).add(1, "minute");
+            let routeArrivalTime = dayjs(departingAt || undefined).add(1, "minute");
 
             for (let individualRoute of groupedRoute) {
                 stopsStationDetails = [];
