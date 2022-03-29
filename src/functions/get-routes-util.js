@@ -58,7 +58,7 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
         });
     } else {
         for (let station of allStations) {
-            allStationsDetailsObject[station] = formatStop(allStops[station]);
+            allStationsDetailsObject[station] = formatStop(allStops[station], allStops);
         }
     }
 
@@ -129,8 +129,22 @@ exports.getArrayOfFares = async function (arrayOfOriginsToDestinations, fareOpti
     return response;
 };
 
-function formatStop(stop) {
+function formatStop(stop, allStops) {
     try {
+        let platform = undefined;
+        if (stop.parent_station !== null) {
+            platform = {
+                id: stop.stop_id,
+                name: {
+                    en: stop.stop_name_en,
+                    th: stop.stop_name_th,
+                },
+                code: stop.platform_code,
+            };
+
+            stop = allStops[stop.parent_station];
+        }
+
         return {
             station: {
                 id: stop.stop_id,
@@ -139,6 +153,7 @@ function formatStop(stop) {
                     en: stop.stop_name_en,
                     th: stop.stop_name_th,
                 },
+                platform: platform,
             },
             coordinates: {
                 lat: parseFloat(stop.stop_lat),

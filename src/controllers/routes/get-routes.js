@@ -323,7 +323,7 @@ async function getRoutes(
             let stopsStationDetails = [];
             let line;
 
-            let routeArrivalTime = dayjs(departingAt || undefined).add(1, "minute");
+            let routeArrivalTime = dayjs("2022-03-29T15:16:04+0700" || undefined).add(1, "minute");
 
             for (let individualRoute of groupedRoute) {
                 stopsStationDetails = [];
@@ -335,7 +335,7 @@ async function getRoutes(
 
                 now = performance.now();
                 for (let stopId of individualRoute.stops) {
-                    stopsStationDetails.push(formatStop(allStops[stopId]));
+                    stopsStationDetails.push(formatStop(allStops[stopId], allStops));
                 }
                 console.log("FIND STOPS", performance.now() - now);
 
@@ -482,9 +482,11 @@ async function getRoutes(
             continue;
         }
 
-        let firstStationOfRoute = realRoutes[i][0].stop_id;
+        let firstStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station
+            .id;
         let firstZoneOfRoute = realRoutes[i][0].zone_id;
-        let lastStationOfRoute = realRoutes[i][0].stop_id;
+        let lastStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station
+            .id;
         let lastZoneOfRoute = realRoutes[i][0].zone_id;
         let currentRouteId = realRoutes[i][0].route_id;
         let separateFares,
@@ -498,7 +500,8 @@ async function getRoutes(
                     (jointFareRules[realRoutes[i][j].route_id] &&
                         jointFareRules[realRoutes[i][j].route_id].includes(currentRouteId))
                 ) {
-                    lastStationOfRoute = realRoutes[i][j].stop_id;
+                    lastStationOfRoute = formatStop(allStops[realRoutes[i][j].stop_id], allStops)
+                        .station.id;
                     lastZoneOfRoute = realRoutes[i][j].zone_id;
 
                     faresToFind.push({
@@ -515,7 +518,8 @@ async function getRoutes(
                 (jointFareRules[realRoutes[i][j].route_id] &&
                     jointFareRules[realRoutes[i][j].route_id].includes(currentRouteId))
             ) {
-                lastStationOfRoute = realRoutes[i][j].stop_id;
+                lastStationOfRoute = formatStop(allStops[realRoutes[i][j].stop_id], allStops)
+                    .station.id;
                 lastZoneOfRoute = realRoutes[i][j].zone_id;
             } else {
                 faresToFind.push({
@@ -525,9 +529,11 @@ async function getRoutes(
                     destination_zone_id: lastZoneOfRoute,
                 });
 
-                firstStationOfRoute = realRoutes[i][j].stop_id;
+                firstStationOfRoute = formatStop(allStops[realRoutes[i][j].stop_id], allStops)
+                    .station.id;
                 firstZoneOfRoute = realRoutes[i][j].zone_id;
-                lastStationOfRoute = realRoutes[i][j].stop_id;
+                lastStationOfRoute = formatStop(allStops[realRoutes[i][j].stop_id], allStops)
+                    .station.id;
                 lastZoneOfRoute = realRoutes[i][j].zone_id;
                 currentRouteId = realRoutes[i][j].route_id;
             }
@@ -597,8 +603,22 @@ async function getRoutes(
     return resultArr;
 }
 
-function formatStop(stop) {
+function formatStop(stop, allStops) {
     try {
+        let platform = undefined;
+        if (stop.parent_station !== null) {
+            platform = {
+                id: stop.stop_id,
+                name: {
+                    en: stop.stop_name_en,
+                    th: stop.stop_name_th,
+                },
+                code: stop.platform_code,
+            };
+
+            stop = allStops[stop.parent_station];
+        }
+
         return {
             station: {
                 id: stop.stop_id,
@@ -607,6 +627,7 @@ function formatStop(stop) {
                     en: stop.stop_name_en,
                     th: stop.stop_name_th,
                 },
+                platform: platform,
             },
             coordinates: {
                 lat: parseFloat(stop.stop_lat),
