@@ -16,6 +16,11 @@ function checkStructEnv() {
         process.exit(1);
     }
 
+    if (!process.env.MONGODB_URL) {
+        logger.error("FATAL: MongoDB URL is not accessible. Exiting.");
+        process.exit(1);
+    }
+
     if (
         !process.env.MYSQL_HOST ||
         !process.env.MYSQL_PASSWORD ||
