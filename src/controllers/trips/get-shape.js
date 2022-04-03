@@ -227,7 +227,9 @@ function cut(from, to, shape, startRadius, stepRadius, maxRadius, reversed) {
     }
 
     return {
-        shape_encoded: encode(decodedShape),
+        shape_encoded: encode(
+            fromSpliceIndex > toSpliceIndex ? decodedShape.reverse() : decodedShape,
+        ),
     };
 }
 
