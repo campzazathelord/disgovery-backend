@@ -8,6 +8,7 @@ const { generateRoute } = require("../../functions/algorithms");
 const { QueryTypes } = require("sequelize");
 const { jointFareRules } = require("../../db/joint-fare-rules");
 const {
+    getPolyline,
     getNearbyStations,
     groupByRoute,
     getNextTrainTime,
@@ -50,6 +51,7 @@ exports.getRoutes = async function (req, res) {
         }
 
         const allTransfers = req.app.get("transfers");
+        console.log(allTransfers)
 
         let originStationIds = await getNearbyStations(origin, allTransfers, allStops);
         let destinationStationIds = await getNearbyStations(destination, allTransfers, allStops);
@@ -265,7 +267,8 @@ exports.getRoutes = async function (req, res) {
 let cachedTimeBetweenStations = {};
 let cachedNextTrainTime = {};
 let cachedFares = {};
-let cachedTransfers = {};
+let cachedTimeTransfers = {};
+let shapeIDs = {};
 
 async function getRoutes(
     originId,
@@ -446,18 +449,25 @@ async function getRoutes(
                     tmpResult.schedule.arriving_at = arrivalTime.format();
                     tmpResult.schedule.duration = duration;
                 } else if (individualRoute.type === "transfer") {
+
                     let perf = performance.now();
                     let transferDuration = 0;
+                    let shapeID = '';
+                    
+                    if (!shapeIDs[`${stopsArr[0]}__${stopsArr[1]}`]){
+                        shapeID = allTransfers[`${stopsArr[0]}__${stopsArr[1]}`].shape_id;
+                        shapeIDs[`${stopsArr[0]}__${stopsArr[1]}`] = shapeID;
+                    }
 
-                    if (!cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`]) {
+                    if (!cachedTimeTransfers[`${stopsArr[0]}__${stopsArr[1]}`]) {
                         transferDuration = await getTransferTime(
                             stopsArr[0],
                             stopsArr[1],
                             allTransfers,
                         );
-                        cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`] = transferDuration;
+                        cachedTimeTransfers[`${stopsArr[0]}__${stopsArr[1]}`] = transferDuration;
                     } else {
-                        transferDuration = cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`];
+                        transferDuration = cachedTimeTransfers[`${stopsArr[0]}__${stopsArr[1]}`];
                     }
 
                     console.log("TRANSFER TIME", performance.now() - perf);
@@ -581,6 +591,18 @@ async function getRoutes(
         let overallDepartingTime = direction_result[0].schedule.departing_at;
         let overallArrivingTime =
             direction_result[direction_result.length - 1].schedule.arriving_at;
+
+        let polylines = await getPolyline(shapeIDs);
+
+        console.log(polylines)
+
+        for(let i in direction_result){
+            if(direction_result[i].type === 'transfer'){
+                console.log(`TRANSFER_${direction_result[i].from.station.id}_${direction_result[i].to.station.id}`)
+                direction_result[i].encoded_polyline = polylines.find((p) => p.shape_id === `TRANSFER_${direction_result[i].from.station.id}_${direction_result[i].to.station.id}`)
+
+            }
+        }
 
         result.schedule = Array.isArray(direction_result)
             ? {

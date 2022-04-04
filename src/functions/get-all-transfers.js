@@ -19,6 +19,7 @@ exports.getAllTransfers = async function () {
             to_stop_id: transfer.to_stop_id,
             transfer_type: transfer.transfer_type,
             min_transfer_time: transfer.min_transfer_time,
+            shape_id: transfer.shape_id
         };
     }
 
