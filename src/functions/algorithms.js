@@ -183,6 +183,17 @@ exports.generateRoute = async (origin, destination, allLinesOfNodes) => {
     for (let [i, route] of routes.entries()) {
         let firstStation = allLinesOfNodes[route[0]] || [];
         let secondStation = allLinesOfNodes[route[1]] || [];
+
+        let lastStation = allLinesOfNodes[route[route.length-1]] || [];
+        let stationBeforLastStation = allLinesOfNodes[route[route.length-2]] || [];
+        if(lastStation.length==1){
+            let result = stationBeforeLastStation.filter(x=>{
+                return x[`route_id`] == stationBeforLastStation[0][`route_id`];
+            })
+            if(result.length==0){
+                routes[i].unshift()
+            }
+        }
         if (firstStation.length == 1) {
             let result = secondStation.filter((x) => {
                 return x[`route_id`] == firstStation[0][`route_id`];
@@ -192,6 +203,5 @@ exports.generateRoute = async (origin, destination, allLinesOfNodes) => {
             }
         }
     }
-
     return routes || [];
 };

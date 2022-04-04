@@ -17,6 +17,7 @@ const {
     getTotalFares,
 } = require("../../functions/get-routes-util");
 const { getDirectionsFromGoogle } = require("../../functions/google-directions-api");
+const res = require("express/lib/response");
 
 exports.getRoutes = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
