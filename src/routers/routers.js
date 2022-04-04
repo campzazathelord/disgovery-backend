@@ -20,7 +20,7 @@ const formUrlEncoded = (x) =>
 
 router.get("/healthcheck", authentication, healthCheck); // Health Check
 
-router.post("/getusertokens", authentication, getUserTokens);
+router.post("/getusertokens",getUserTokens);
 
 router.get("/station/nearby", authentication, getNearbyStations); // API 1-1
 router.get("/station/id/:id", authentication, getStationDetails); // API 1-2
@@ -31,6 +31,6 @@ router.get("/autocomplete/places", authentication, getPlacesAutocomplete); // AP
 router.get("/autocomplete/stations", authentication, getStationAutocomplete); // API 2-2
 router.get("/autocomplete/lines", authentication, getRoutesAutocomplete); //API 2-3
 
-router.post("/route/new",getRoutes); // API 3-1
+router.post("/route/new",authentication,getRoutes); // API 3-1
 
 module.exports = router;
