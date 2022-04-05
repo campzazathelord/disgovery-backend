@@ -315,8 +315,8 @@ exports.groupByRoute = function (realRoutes) {
  * @returns {number} arriving_in
  * @returns {string} trip_id
  */
-exports.getNextTrainTime = async function (origin_id, destination_id, routeArrivalTime) {
-    let now = dayjs();
+exports.getNextTrainTime = async function (origin_id, destination_id, routeArrivalTime,time) {
+    let now = time;
     let todaysDay = now.day();
     let routeArrivalTimeString = await getGTFSFormattedCurrentTime(routeArrivalTime);
 

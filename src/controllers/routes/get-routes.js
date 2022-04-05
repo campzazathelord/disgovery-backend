@@ -19,6 +19,8 @@ const {
 } = require("../../functions/get-routes-util");
 const { getDirectionsFromGoogle } = require("../../functions/google-directions-api");
 
+let time;
+
 exports.getRoutes = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
 
@@ -36,7 +38,6 @@ exports.getRoutes = async function (req, res) {
             origin = req.body.origin.split(":");
             destination = req.body.destination.split(":");
             time = dayjs(req.body.time);
-
             if (origin.length <= 1 || destination.length <= 1)
                 return res.status(APIStatus.BAD_REQUEST.status).send({
                     status: APIStatus.BAD_REQUEST.status,
@@ -51,7 +52,7 @@ exports.getRoutes = async function (req, res) {
         }
 
         const allTransfers = req.app.get("transfers");
-        console.log(allTransfers)
+        //console.log(allTransfers)
 
         let originStationIds = await getNearbyStations(origin, allTransfers, allStops);
         let destinationStationIds = await getNearbyStations(destination, allTransfers, allStops);
@@ -326,7 +327,8 @@ async function getRoutes(
             let stopsStationDetails = [];
             let line;
 
-            let routeArrivalTime = dayjs("2022-03-29T15:16:04+0700" || undefined).add(1, "minute");
+            let routeArrivalTime = time.add(1, "minute");
+            //let routeArrivalTime = dayjs("2022-03-29T15:16:04+0700" || undefined).add(1, "minute");
 
             for (let individualRoute of groupedRoute) {
                 stopsStationDetails = [];
@@ -384,6 +386,7 @@ async function getRoutes(
                                 stopsArr[0],
                                 stopsArr[stopsArr.length - 1],
                                 routeArrivalTime,
+                                time
                             );
 
                             tripIdAvailable = tripId;
@@ -594,12 +597,22 @@ async function getRoutes(
 
         let polylines = await getPolyline(shapeIDs);
 
-        console.log(polylines)
+        console.log(polylines,'polylines')
 
-        for(let i in direction_result){
-            if(direction_result[i].type === 'transfer'){
-                console.log(`TRANSFER_${direction_result[i].from.station.id}_${direction_result[i].to.station.id}`)
-                direction_result[i].encoded_polyline = polylines.find((p) => p.shape_id === `TRANSFER_${direction_result[i].from.station.id}_${direction_result[i].to.station.id}`)
+        // for(let i in direction_result){
+        //     if(direction_result[i].type === 'transfer'){
+        //         console.log(`TRANSFER_${direction_result[i].from.station.id}_${direction_result[i].to.station.id}`)
+        //         direction_result[i].encoded_polyline = polylines.find((p) => p.shape_id === `TRANSFER_${direction_result[i].from.station.id}_${direction_result[i].to.station.id}`)
+
+        //     }
+        // }
+
+        for(let oneDirection_result of direction_result){
+            if(oneDirection_result.type === 'transfer'){
+                console.log(`TRANSFER_${oneDirection_result.from.station.id}_${oneDirection_result.to.station.id}`)
+                let polyline = polylines.find((p) => p.shape_id === `TRANSFER_${oneDirection_result.from.station.id}_${oneDirection_result.to.station.id}`);
+                if(!polyline)continue
+                oneDirection_result.encoded_polyline = polyline.shape_encoded
 
             }
         }
