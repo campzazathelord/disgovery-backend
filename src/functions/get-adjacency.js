@@ -4,7 +4,7 @@ const fs = require("fs");
 const app = require("..");
 const { getAllTransfers } = require("./get-all-transfers");
 
-const TRANSFER_PENALTY = 10000;
+const TRANSFER_PENALTY = 1000000;
 
 exports.getAdjacency = async function () {
     let adjacencyListMatrix = {};

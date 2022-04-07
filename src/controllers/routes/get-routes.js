@@ -288,6 +288,13 @@ async function getRoutes(
 
     if (!allRoutes || allRoutes.length === 0) return [];
 
+    for(let i = 0; i < allRoutes.length;i++){
+        if(allRoutes[i][allRoutes[i].length-1]>= 1000000) {
+            allRoutes.splice(i,i+1);
+            i--
+        }
+    }
+
     let routeOfStationObj = {};
     for (let routeObj of routeOfStation) {
         let stationName = routeObj.stop_id;

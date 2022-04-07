@@ -185,7 +185,7 @@ exports.getTotalFares = function (allFares) {
 };
 
 exports.getNearbyStations = async function (stationArray, allTransfers, allStops) {
-    const RADIUS_STEP = 5000;
+    const RADIUS_STEP = 1000;
     const MAX_RADIUS = 30000;
     const MAX_NEARBY_STATIONS = 1;
     let result = [];
@@ -212,11 +212,11 @@ exports.getNearbyStations = async function (stationArray, allTransfers, allStops
                                 result[j],
                                 allTransfers,
                             );
-                            if (transferTime > 0) {
-                                console.log("Transfer Detected");
-                                result.splice(j, 1);
-                                j--;
-                            }
+                            // if (transferTime > 0) {
+                            //     console.log("Transfer Detected");
+                            //     result.splice(j, 1);
+                            //     j--;
+                            // }
                         }
                     }
 
