@@ -30,7 +30,7 @@ exports.getAdjacency = async function () {
             type: QueryTypes.SELECT,
         },
     );
-
+    //console.log(allStations,"allStations")
     let allStationsObject = {};
 
     for (let station of allStations) {
@@ -66,14 +66,14 @@ exports.getAdjacency = async function () {
                     if (allStations[i - 1].stop_id === matrix.node) previousIsRepeated = true;
                 }
 
-                if (!previousIsRepeated)
-                    adjacencyListMatrix[station.stop_id] = [
-                        ...adjacencyListMatrix[station.stop_id],
-                        {
-                            node: allStations[i - 1].stop_id,
-                            weight: allStations[i].timeFromPrevStopSeqInSec,
-                        },
-                    ];
+                // if (!previousIsRepeated)
+                //     adjacencyListMatrix[station.stop_id] = [
+                //         ...adjacencyListMatrix[station.stop_id],
+                //         {
+                //             node: allStations[i - 1].stop_id,
+                //             weight: allStations[i].timeFromPrevStopSeqInSec,
+                //         },
+                //     ];
 
                 if (i !== allStations.length - 1) {
                     let nextIsRepeated = false;
