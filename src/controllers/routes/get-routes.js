@@ -19,7 +19,7 @@ const {
 } = require("../../functions/get-routes-util");
 const { getDirectionsFromGoogle } = require("../../functions/google-directions-api");
 
-let time;
+let time,originStationIds,destinationStationIds;
 
 exports.getRoutes = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
@@ -54,8 +54,8 @@ exports.getRoutes = async function (req, res) {
         const allTransfers = req.app.get("transfers");
         //console.log(allTransfers)
 
-        let originStationIds = await getNearbyStations(origin, allTransfers, allStops);
-        let destinationStationIds = await getNearbyStations(destination, allTransfers, allStops);
+        originStationIds = await getNearbyStations(origin, allTransfers, allStops);
+        destinationStationIds = await getNearbyStations(destination, allTransfers, allStops);
         let originType = origin[0];
         let destinationType = destination[0];
         let googleDirections = {};
@@ -67,6 +67,7 @@ exports.getRoutes = async function (req, res) {
                 message: "Unable to find nearby stations from the origin or the destination.",
             });
 
+        console.log(originStationIds,"originStationIds",destinationStationIds,"destinationStationIds")    
         if (originType === "coordinates") {
             for (let originId of originStationIds) {
                 if (directionsFetched.includes(allStops[originId].parent_station)) continue;
@@ -282,7 +283,7 @@ async function getRoutes(
     allTransfers,
 ) {
     let now = performance.now();
-    console.log(originId, destinationId);
+    console.log("from:",originId," to:", destinationId);
     const allRoutes = await generateRoute(originId, destinationId, allLinesOfNodes);
     console.log("------- GEN ROUTE", performance.now() - now);
 
@@ -316,6 +317,40 @@ async function getRoutes(
 
     if (!realRoutes || realRoutes.length === 0) return [];
 
+    let indexToBeDelete = [];
+    for(let i in realRoutes) { 
+        let passingCount = 0;
+        for(let j in realRoutes[i]){
+            
+            
+            if(originStationIds.includes(realRoutes[i][j].stop_id)){ //if the origin passes one of the originStationIds, remove realRoutes[i] entirely
+                passingCount++;
+                //console.log(`passing: ${realRoutes[i][j].stop_id} count: ${passingCount}`);
+                if(passingCount>1){
+                    indexToBeDelete.push(i);
+                    break;
+                }
+            } else if(destinationStationIds.includes(realRoutes[i][j].stop_id)){ // remove extra stations if we arrive at one of the destinationStationIds already
+                //console.log("We have arrived, i:",i," j:",j);
+                let removeIndex = parseInt(j)+1;
+                let removeAmount = realRoutes[i].length-removeIndex;
+                //console.log(removeIndex,"removeIndex",removeAmount,"removeAmount",j,"j")
+                let removed = realRoutes[i].splice(removeIndex,removeAmount);
+                //console.log("removed:",removed);
+                break;
+            }
+        }
+        //console.log(realRoutes[i],"realRoutes[i] ",realRoutes[i].length,"length")
+    }
+    indexToBeDelete.reverse()
+    //console.log(realRoutes.length,"lenght b4 delete");
+    for(let index of indexToBeDelete){
+        let removed = realRoutes.splice(parseInt(index),1);
+        //console.log(`removing at ${index}`);
+    }
+    //console.log(realRoutes.length,"lenght after delete");
+    //for(let routes of realRoutes)console.log(routes,"routes");
+    
     let result;
     let resultArr = [];
     let breakToMainLoop = false;
@@ -336,7 +371,7 @@ async function getRoutes(
 
             let routeArrivalTime = time.add(1, "minute");
             //let routeArrivalTime = dayjs("2022-03-29T15:16:04+0700" || undefined).add(1, "minute");
-
+            //console.log(groupedRoute,"groupedRoute");
             for (let individualRoute of groupedRoute) {
                 stopsStationDetails = [];
                 if (individualRoute.type !== "transfer")
@@ -350,7 +385,7 @@ async function getRoutes(
                     stopsStationDetails.push(formatStop(allStops[stopId], allStops));
                 }
                 console.log("FIND STOPS", performance.now() - now);
-
+                //console.log(individualRoute,"individualRoute");
                 tmpResult.from = stopsStationDetails[0];
                 tmpResult.to = stopsStationDetails[stopsStationDetails.length - 1];
 
