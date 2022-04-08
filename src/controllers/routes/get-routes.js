@@ -19,7 +19,7 @@ const {
 } = require("../../functions/get-routes-util");
 const { getDirectionsFromGoogle } = require("../../functions/google-directions-api");
 
-let time,originStationIds,destinationStationIds;
+let time, originStationIds, destinationStationIds;
 
 exports.getRoutes = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
@@ -67,7 +67,12 @@ exports.getRoutes = async function (req, res) {
                 message: "Unable to find nearby stations from the origin or the destination.",
             });
 
-        console.log(originStationIds,"originStationIds",destinationStationIds,"destinationStationIds")    
+        // console.log(
+        //     originStationIds,
+        //     "originStationIds",
+        //     destinationStationIds,
+        //     "destinationStationIds",
+        // );
         if (originType === "coordinates") {
             for (let originId of originStationIds) {
                 if (directionsFetched.includes(allStops[originId].parent_station)) continue;
@@ -283,16 +288,16 @@ async function getRoutes(
     allTransfers,
 ) {
     let now = performance.now();
-    console.log("from:",originId," to:", destinationId);
+    // console.log("from:", originId, " to:", destinationId);
     const allRoutes = await generateRoute(originId, destinationId, allLinesOfNodes);
     console.log("------- GEN ROUTE", performance.now() - now);
 
     if (!allRoutes || allRoutes.length === 0) return [];
 
-    for(let i = 0; i < allRoutes.length;i++){
-        if(allRoutes[i][allRoutes[i].length-1]>= 1000000) {
-            allRoutes.splice(i,i+1);
-            i--
+    for (let i = 0; i < allRoutes.length; i++) {
+        if (allRoutes[i][allRoutes[i].length - 1] >= 1000000) {
+            allRoutes.splice(i, i + 1);
+            i--;
         }
     }
 
@@ -318,39 +323,39 @@ async function getRoutes(
     if (!realRoutes || realRoutes.length === 0) return [];
 
     let indexToBeDelete = [];
-    for(let i in realRoutes) { 
+    for (let i in realRoutes) {
         let passingCount = 0;
-        for(let j in realRoutes[i]){
-            
-            
-            if(originStationIds.includes(realRoutes[i][j].stop_id)){ //if the origin passes one of the originStationIds, remove realRoutes[i] entirely
+        for (let j in realRoutes[i]) {
+            if (originStationIds.includes(realRoutes[i][j].stop_id)) {
+                //if the origin passes one of the originStationIds, remove realRoutes[i] entirely
                 passingCount++;
                 //console.log(`passing: ${realRoutes[i][j].stop_id} count: ${passingCount}`);
-                if(passingCount>1){
+                if (passingCount > 1) {
                     indexToBeDelete.push(i);
                     break;
                 }
-            } else if(destinationStationIds.includes(realRoutes[i][j].stop_id)){ // remove extra stations if we arrive at one of the destinationStationIds already
+            } else if (destinationStationIds.includes(realRoutes[i][j].stop_id)) {
+                // remove extra stations if we arrive at one of the destinationStationIds already
                 //console.log("We have arrived, i:",i," j:",j);
-                let removeIndex = parseInt(j)+1;
-                let removeAmount = realRoutes[i].length-removeIndex;
+                let removeIndex = parseInt(j) + 1;
+                let removeAmount = realRoutes[i].length - removeIndex;
                 //console.log(removeIndex,"removeIndex",removeAmount,"removeAmount",j,"j")
-                let removed = realRoutes[i].splice(removeIndex,removeAmount);
+                let removed = realRoutes[i].splice(removeIndex, removeAmount);
                 //console.log("removed:",removed);
                 break;
             }
         }
         //console.log(realRoutes[i],"realRoutes[i] ",realRoutes[i].length,"length")
     }
-    indexToBeDelete.reverse()
+    indexToBeDelete.reverse();
     //console.log(realRoutes.length,"lenght b4 delete");
-    for(let index of indexToBeDelete){
-        let removed = realRoutes.splice(parseInt(index),1);
+    for (let index of indexToBeDelete) {
+        let removed = realRoutes.splice(parseInt(index), 1);
         //console.log(`removing at ${index}`);
     }
     //console.log(realRoutes.length,"lenght after delete");
     //for(let routes of realRoutes)console.log(routes,"routes");
-    
+
     let result;
     let resultArr = [];
     let breakToMainLoop = false;
@@ -428,7 +433,7 @@ async function getRoutes(
                                 stopsArr[0],
                                 stopsArr[stopsArr.length - 1],
                                 routeArrivalTime,
-                                time
+                                time,
                             );
 
                             tripIdAvailable = tripId;
@@ -494,14 +499,25 @@ async function getRoutes(
                     tmpResult.schedule.arriving_at = arrivalTime.format();
                     tmpResult.schedule.duration = duration;
                 } else if (individualRoute.type === "transfer") {
-
                     let perf = performance.now();
                     let transferDuration = 0;
-                    let shapeID = '';
-                    
-                    if (!shapeIDs[`${stopsArr[0]}__${stopsArr[1]}`]){
-                        shapeID = allTransfers[`${stopsArr[0]}__${stopsArr[1]}`].shape_id;
-                        shapeIDs[`${stopsArr[0]}__${stopsArr[1]}`] = shapeID;
+                    let shapeID = "";
+
+                    let parentOfTransferOrigin = formatStop(allStops[stopsArr[0]], allStops).station
+                        .id;
+                    let parentOfTransferDestination = formatStop(allStops[stopsArr[1]], allStops)
+                        .station.id;
+
+                    if (!shapeIDs[`${parentOfTransferOrigin}__${parentOfTransferDestination}`]) {
+                        shapeID = allTransfers[
+                            `${parentOfTransferOrigin}__${parentOfTransferDestination}`
+                        ]
+                            ? allTransfers[
+                                  `${parentOfTransferOrigin}__${parentOfTransferDestination}`
+                              ].shape_id
+                            : "";
+                        shapeIDs[`${parentOfTransferOrigin}__${parentOfTransferDestination}`] =
+                            shapeID;
                     }
 
                     if (!cachedTimeTransfers[`${stopsArr[0]}__${stopsArr[1]}`]) {
@@ -639,7 +655,7 @@ async function getRoutes(
 
         let polylines = await getPolyline(shapeIDs);
 
-        console.log(polylines,'polylines')
+        console.log(polylines, "polylines");
 
         // for(let i in direction_result){
         //     if(direction_result[i].type === 'transfer'){
@@ -649,13 +665,18 @@ async function getRoutes(
         //     }
         // }
 
-        for(let oneDirection_result of direction_result){
-            if(oneDirection_result.type === 'transfer'){
-                console.log(`TRANSFER_${oneDirection_result.from.station.id}_${oneDirection_result.to.station.id}`)
-                let polyline = polylines.find((p) => p.shape_id === `TRANSFER_${oneDirection_result.from.station.id}_${oneDirection_result.to.station.id}`);
-                if(!polyline)continue
-                oneDirection_result.encoded_polyline = polyline.shape_encoded
-
+        for (let oneDirection_result of direction_result) {
+            if (oneDirection_result.type === "transfer") {
+                console.log(
+                    `TRANSFER_${oneDirection_result.from.station.id}_${oneDirection_result.to.station.id}`,
+                );
+                let polyline = polylines.find(
+                    (p) =>
+                        p.shape_id ===
+                        `TRANSFER_${oneDirection_result.from.station.id}_${oneDirection_result.to.station.id}`,
+                );
+                if (!polyline) continue;
+                oneDirection_result.encoded_polyline = polyline.shape_encoded;
             }
         }
 

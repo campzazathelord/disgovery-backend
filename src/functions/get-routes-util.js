@@ -315,7 +315,7 @@ exports.groupByRoute = function (realRoutes) {
  * @returns {number} arriving_in
  * @returns {string} trip_id
  */
-exports.getNextTrainTime = async function (origin_id, destination_id, routeArrivalTime,time) {
+exports.getNextTrainTime = async function (origin_id, destination_id, routeArrivalTime, time) {
     let now = time;
     let todaysDay = now.day();
     let routeArrivalTimeString = await getGTFSFormattedCurrentTime(routeArrivalTime);
@@ -348,17 +348,18 @@ exports.getNextTrainTime = async function (origin_id, destination_id, routeArriv
     return { waitTime: parseFloat(trips[0].arriving_in), tripId: trips[0].trip_id };
 };
 
-exports.getPolyline = async function(shapeIDs) {
+exports.getPolyline = async function (shapeIDs) {
     let queryString = ``;
     let polylines = [];
+    console.log("POLYLINEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE", shapeIDs);
 
     Object.keys(shapeIDs).map((key, iteration) => {
         if (iteration === 0) {
-            queryString += `SELECT shape_id,shape_encoded FROM shapes WHERE shape_id = '${shapeIDs[key]}' `
-        }else{
-            queryString += `UNION SELECT shape_id,shape_encoded FROM shapes WHERE shape_id = '${shapeIDs[key]}' `
+            queryString += `SELECT shape_id,shape_encoded FROM shapes WHERE shape_id = '${shapeIDs[key]}' `;
+        } else {
+            queryString += `UNION SELECT shape_id,shape_encoded FROM shapes WHERE shape_id = '${shapeIDs[key]}' `;
         }
-    })
+    });
 
     try {
         polylines = await sequelize.query(queryString, {
@@ -369,7 +370,7 @@ exports.getPolyline = async function(shapeIDs) {
     }
 
     return polylines;
-}
+};
 
 exports.getArrayOfNextTrainTimes = async function (array) {
     let now = dayjs();
