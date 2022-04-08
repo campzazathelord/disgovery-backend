@@ -696,8 +696,6 @@ async function getRoutes(
                   duration: dayjs(overallArrivingTime).diff(dayjs(overallDepartingTime), "second"),
               }
             : undefined;
-
-        console.log(result.schedule);
         result.total_fares = totalFares;
         result.fares = formattedFares;
         result.directions = direction_result;

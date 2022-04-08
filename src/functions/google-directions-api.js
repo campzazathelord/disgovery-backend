@@ -105,8 +105,6 @@ exports.getDirectionsFromGoogle = async function (
         `https://maps.googleapis.com/maps/api/directions/json?destination=${DESTINATION}&origin=${ORIGIN}&mode=${mode}&units=${units}&departure_time=${departure_time}&language=en&key=${process.env.GOOGLE_MAPS_API_KEY}`,
     );
 
-    console.log(data.data);
-
     let directions = data.data;
     let response = {};
 
