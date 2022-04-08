@@ -351,7 +351,6 @@ exports.getNextTrainTime = async function (origin_id, destination_id, routeArriv
 exports.getPolyline = async function (shapeIDs) {
     let queryString = ``;
     let polylines = [];
-    console.log("POLYLINEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE", shapeIDs);
 
     Object.keys(shapeIDs).map((key, iteration) => {
         if (iteration === 0) {

@@ -650,7 +650,7 @@ async function getRoutes(
 
         let polylines = await getPolyline(shapeIDs);
 
-        console.log(polylines, "polylines");
+        // console.log(polylines, "polylines");
 
         // for(let i in direction_result){
         //     if(direction_result[i].type === 'transfer'){
