@@ -52,7 +52,6 @@ exports.getRoutes = async function (req, res) {
         }
 
         const allTransfers = req.app.get("transfers");
-        //console.log(allTransfers)
 
         originStationIds = await getNearbyStations(origin, allTransfers, allStops);
         destinationStationIds = await getNearbyStations(destination, allTransfers, allStops);
@@ -67,12 +66,6 @@ exports.getRoutes = async function (req, res) {
                 message: "Unable to find nearby stations from the origin or the destination.",
             });
 
-        // console.log(
-        //     originStationIds,
-        //     "originStationIds",
-        //     destinationStationIds,
-        //     "destinationStationIds",
-        // );
         if (originType === "coordinates") {
             for (let originId of originStationIds) {
                 if (directionsFetched.includes(allStops[originId].parent_station)) continue;
@@ -80,22 +73,23 @@ exports.getRoutes = async function (req, res) {
                 let originCoordinates = origin[1].split(",");
 
                 let perf = performance.now();
-                googleDirections[originId] = await getDirectionsFromGoogle(
-                    {
-                        type: "coordinates",
-                        coordinates: {
-                            lat: parseFloat(originCoordinates[0]),
-                            lng: parseFloat(originCoordinates[1]),
+                googleDirections[formatStop(allStops[originId], allStops).station.id] =
+                    await getDirectionsFromGoogle(
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(originCoordinates[0]),
+                                lng: parseFloat(originCoordinates[1]),
+                            },
                         },
-                    },
-                    {
-                        type: "coordinates",
-                        coordinates: {
-                            lat: parseFloat(allStops[originId].stop_lat),
-                            lng: parseFloat(allStops[originId].stop_lon),
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(allStops[originId].stop_lat),
+                                lng: parseFloat(allStops[originId].stop_lon),
+                            },
                         },
-                    },
-                );
+                    );
                 directionsFetched.push(allStops[originId].parent_station);
                 console.log("GOOGLE ORIGIN", performance.now() - perf);
             }
@@ -109,22 +103,23 @@ exports.getRoutes = async function (req, res) {
 
                 let perf = performance.now();
 
-                googleDirections[destinationId] = await getDirectionsFromGoogle(
-                    {
-                        type: "coordinates",
-                        coordinates: {
-                            lat: parseFloat(allStops[destinationId].stop_lat),
-                            lng: parseFloat(allStops[destinationId].stop_lon),
+                googleDirections[formatStop(allStops[destinationId], allStops).station.id] =
+                    await getDirectionsFromGoogle(
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(allStops[destinationId].stop_lat),
+                                lng: parseFloat(allStops[destinationId].stop_lon),
+                            },
                         },
-                    },
-                    {
-                        type: "coordinates",
-                        coordinates: {
-                            lat: parseFloat(destinationCoordinates[0]),
-                            lng: parseFloat(destinationCoordinates[1]),
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(destinationCoordinates[0]),
+                                lng: parseFloat(destinationCoordinates[1]),
+                            },
                         },
-                    },
-                );
+                    );
                 directionsFetched.push(allStops[destinationId].parent_station);
                 console.log("GOOGLE DEST", performance.now() - perf);
             }

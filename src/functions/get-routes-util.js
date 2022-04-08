@@ -205,20 +205,20 @@ exports.getNearbyStations = async function (stationArray, allTransfers, allStops
                         result.push(station.stop_id);
                     }
 
-                    for (let i = 0; i < result.length; i++) {
-                        for (let j = i + 1; j < result.length; j++) {
-                            let transferTime = await getTransferTime(
-                                result[i],
-                                result[j],
-                                allTransfers,
-                            );
-                            // if (transferTime > 0) {
-                            //     console.log("Transfer Detected");
-                            //     result.splice(j, 1);
-                            //     j--;
-                            // }
-                        }
-                    }
+                    // for (let i = 0; i < result.length; i++) {
+                    //     for (let j = i + 1; j < result.length; j++) {
+                    //         let transferTime = await getTransferTime(
+                    //             result[i],
+                    //             result[j],
+                    //             allTransfers,
+                    //         );
+                    //         // if (transferTime > 0) {
+                    //         //     console.log("Transfer Detected");
+                    //         //     result.splice(j, 1);
+                    //         //     j--;
+                    //         // }
+                    //     }
+                    // }
 
                     let childrenStops = [];
                     for (let i in result) {
