@@ -51,6 +51,14 @@ exports.getRoutes = async function (req, res) {
             });
         }
 
+        if (time.valueOf() < dayjs().valueOf()) {
+            logger.error("error: time is in the past");
+            return res.status(APIStatus.BAD_REQUEST.status).send({
+                status: APIStatus.BAD_REQUEST.status,
+                message: "Time is in the past. We can't travel back in time, can we?",
+            });
+        }
+
         const allTransfers = req.app.get("transfers");
 
         originStationIds = await getNearbyStations(origin, allTransfers, allStops);
@@ -89,6 +97,9 @@ exports.getRoutes = async function (req, res) {
                                 lng: parseFloat(allStops[originId].stop_lon),
                             },
                         },
+                        "walking",
+                        "metric",
+                        time.valueOf(),
                     );
                 directionsFetched.push(allStops[originId].parent_station);
                 console.log("GOOGLE ORIGIN", performance.now() - perf);
@@ -119,6 +130,9 @@ exports.getRoutes = async function (req, res) {
                                 lng: parseFloat(destinationCoordinates[1]),
                             },
                         },
+                        "walking",
+                        "metric",
+                        time.valueOf(),
                     );
                 directionsFetched.push(allStops[destinationId].parent_station);
                 console.log("GOOGLE DEST", performance.now() - perf);
@@ -682,6 +696,8 @@ async function getRoutes(
                   duration: dayjs(overallArrivingTime).diff(dayjs(overallDepartingTime), "second"),
               }
             : undefined;
+
+        console.log(result.schedule);
         result.total_fares = totalFares;
         result.fares = formattedFares;
         result.directions = direction_result;

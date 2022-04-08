@@ -94,13 +94,18 @@ exports.getDirectionsFromGoogle = async function (
     if (units !== "metric" && units !== "imperial") units = "metric";
 
     if (!departure_time) departure_time = "now";
-    if (departure_time !== "now")
+    if (departure_time !== "now") {
         if (dayjs(departure_time).isValid()) departure_time = dayjs(departure_time).unix();
         else departure_time = "now";
+    }
+
+    console.log(departure_time);
 
     let data = await axios.get(
         `https://maps.googleapis.com/maps/api/directions/json?destination=${DESTINATION}&origin=${ORIGIN}&mode=${mode}&units=${units}&departure_time=${departure_time}&language=en&key=${process.env.GOOGLE_MAPS_API_KEY}`,
     );
+
+    console.log(data.data);
 
     let directions = data.data;
     let response = {};
@@ -138,11 +143,13 @@ exports.getDirectionsFromGoogle = async function (
         let now = dayjs();
 
         response.schedule = {
-            departing_at: departure_time === "now" ? now.format() : dayjs(departure_time).format(),
+            departing_at:
+                departure_time === "now" ? now.format() : dayjs.unix(departure_time).format(),
             arriving_at:
                 departure_time === "now"
                     ? now.add(directions.routes[0].legs[0].duration.value, "second").format()
-                    : dayjs(departure_time)
+                    : dayjs
+                          .unix(departure_time)
                           .add(directions.routes[0].legs[0].duration.value, "second")
                           .format(),
             duration: directions.routes[0].legs[0].duration.value,
