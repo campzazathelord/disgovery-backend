@@ -8,6 +8,7 @@ const { generateRoute } = require("../../functions/algorithms");
 const { QueryTypes } = require("sequelize");
 const { jointFareRules } = require("../../db/joint-fare-rules");
 const {
+    getPolyline,
     getNearbyStations,
     groupByRoute,
     getNextTrainTime,
@@ -18,6 +19,8 @@ const {
 } = require("../../functions/get-routes-util");
 const { getDirectionsFromGoogle } = require("../../functions/google-directions-api");
 const res = require("express/lib/response");
+
+let time, originStationIds, destinationStationIds;
 
 exports.getRoutes = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
@@ -36,7 +39,6 @@ exports.getRoutes = async function (req, res) {
             origin = req.body.origin.split(":");
             destination = req.body.destination.split(":");
             time = dayjs(req.body.time);
-
             if (origin.length <= 1 || destination.length <= 1)
                 return res.status(APIStatus.BAD_REQUEST.status).send({
                     status: APIStatus.BAD_REQUEST.status,
@@ -50,10 +52,18 @@ exports.getRoutes = async function (req, res) {
             });
         }
 
+        if (time.valueOf() < dayjs().valueOf()) {
+            logger.error("error: time is in the past");
+            return res.status(APIStatus.BAD_REQUEST.status).send({
+                status: APIStatus.BAD_REQUEST.status,
+                message: "Time is in the past. We can't travel back in time, can we?",
+            });
+        }
+
         const allTransfers = req.app.get("transfers");
 
-        let originStationIds = await getNearbyStations(origin, allTransfers, allStops);
-        let destinationStationIds = await getNearbyStations(destination, allTransfers, allStops);
+        originStationIds = await getNearbyStations(origin, allTransfers, allStops);
+        destinationStationIds = await getNearbyStations(destination, allTransfers, allStops);
         let originType = origin[0];
         let destinationType = destination[0];
         let googleDirections = {};
@@ -72,22 +82,26 @@ exports.getRoutes = async function (req, res) {
                 let originCoordinates = origin[1].split(",");
 
                 let perf = performance.now();
-                googleDirections[originId] = await getDirectionsFromGoogle(
-                    {
-                        type: "coordinates",
-                        coordinates: {
-                            lat: parseFloat(originCoordinates[0]),
-                            lng: parseFloat(originCoordinates[1]),
+                googleDirections[formatStop(allStops[originId], allStops).station.id] =
+                    await getDirectionsFromGoogle(
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(originCoordinates[0]),
+                                lng: parseFloat(originCoordinates[1]),
+                            },
                         },
-                    },
-                    {
-                        type: "coordinates",
-                        coordinates: {
-                            lat: parseFloat(allStops[originId].stop_lat),
-                            lng: parseFloat(allStops[originId].stop_lon),
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(allStops[originId].stop_lat),
+                                lng: parseFloat(allStops[originId].stop_lon),
+                            },
                         },
-                    },
-                );
+                        "walking",
+                        "metric",
+                        time.valueOf(),
+                    );
                 directionsFetched.push(allStops[originId].parent_station);
                 console.log("GOOGLE ORIGIN", performance.now() - perf);
             }
@@ -101,22 +115,26 @@ exports.getRoutes = async function (req, res) {
 
                 let perf = performance.now();
 
-                googleDirections[destinationId] = await getDirectionsFromGoogle(
-                    {
-                        type: "coordinates",
-                        coordinates: {
-                            lat: parseFloat(allStops[destinationId].stop_lat),
-                            lng: parseFloat(allStops[destinationId].stop_lon),
+                googleDirections[formatStop(allStops[destinationId], allStops).station.id] =
+                    await getDirectionsFromGoogle(
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(allStops[destinationId].stop_lat),
+                                lng: parseFloat(allStops[destinationId].stop_lon),
+                            },
                         },
-                    },
-                    {
-                        type: "coordinates",
-                        coordinates: {
-                            lat: parseFloat(destinationCoordinates[0]),
-                            lng: parseFloat(destinationCoordinates[1]),
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(destinationCoordinates[0]),
+                                lng: parseFloat(destinationCoordinates[1]),
+                            },
                         },
-                    },
-                );
+                        "walking",
+                        "metric",
+                        time.valueOf(),
+                    );
                 directionsFetched.push(allStops[destinationId].parent_station);
                 console.log("GOOGLE DEST", performance.now() - perf);
             }
@@ -266,7 +284,8 @@ exports.getRoutes = async function (req, res) {
 let cachedTimeBetweenStations = {};
 let cachedNextTrainTime = {};
 let cachedFares = {};
-let cachedTransfers = {};
+let cachedTimeTransfers = {};
+let shapeIDs = {};
 
 async function getRoutes(
     originId,
@@ -279,11 +298,18 @@ async function getRoutes(
     allTransfers,
 ) {
     let now = performance.now();
-    console.log(originId, destinationId);
+    // console.log("from:", originId, " to:", destinationId);
     const allRoutes = await generateRoute(originId, destinationId, allLinesOfNodes);
     console.log("------- GEN ROUTE", performance.now() - now);
 
     if (!allRoutes || allRoutes.length === 0) return [];
+
+    for (let i = 0; i < allRoutes.length; i++) {
+        if (allRoutes[i][allRoutes[i].length - 1] >= 1000000) {
+            allRoutes.splice(i, i + 1);
+            i--;
+        }
+    }
 
     let routeOfStationObj = {};
     for (let routeObj of routeOfStation) {
@@ -306,6 +332,40 @@ async function getRoutes(
 
     if (!realRoutes || realRoutes.length === 0) return [];
 
+    let indexToBeDelete = [];
+    for (let i in realRoutes) {
+        let passingCount = 0;
+        for (let j in realRoutes[i]) {
+            if (originStationIds.includes(realRoutes[i][j].stop_id)) {
+                //if the origin passes one of the originStationIds, remove realRoutes[i] entirely
+                passingCount++;
+                //console.log(`passing: ${realRoutes[i][j].stop_id} count: ${passingCount}`);
+                if (passingCount > 1) {
+                    indexToBeDelete.push(i);
+                    break;
+                }
+            } else if (destinationStationIds.includes(realRoutes[i][j].stop_id)) {
+                // remove extra stations if we arrive at one of the destinationStationIds already
+                //console.log("We have arrived, i:",i," j:",j);
+                let removeIndex = parseInt(j) + 1;
+                let removeAmount = realRoutes[i].length - removeIndex;
+                //console.log(removeIndex,"removeIndex",removeAmount,"removeAmount",j,"j")
+                let removed = realRoutes[i].splice(removeIndex, removeAmount);
+                //console.log("removed:",removed);
+                break;
+            }
+        }
+        //console.log(realRoutes[i],"realRoutes[i] ",realRoutes[i].length,"length")
+    }
+    indexToBeDelete.reverse();
+    //console.log(realRoutes.length,"lenght b4 delete");
+    for (let index of indexToBeDelete) {
+        let removed = realRoutes.splice(parseInt(index), 1);
+        //console.log(`removing at ${index}`);
+    }
+    //console.log(realRoutes.length,"lenght after delete");
+    //for(let routes of realRoutes)console.log(routes,"routes");
+
     let result;
     let resultArr = [];
     let breakToMainLoop = false;
@@ -324,8 +384,9 @@ async function getRoutes(
             let stopsStationDetails = [];
             let line;
 
-            let routeArrivalTime = dayjs(departingAt || undefined).add(1, "minute");
-
+            let routeArrivalTime = time.add(1, "minute");
+            //let routeArrivalTime = dayjs("2022-03-29T15:16:04+0700" || undefined).add(1, "minute");
+            //console.log(groupedRoute,"groupedRoute");
             for (let individualRoute of groupedRoute) {
                 stopsStationDetails = [];
                 if (individualRoute.type !== "transfer")
@@ -339,7 +400,7 @@ async function getRoutes(
                     stopsStationDetails.push(formatStop(allStops[stopId], allStops));
                 }
                 console.log("FIND STOPS", performance.now() - now);
-
+                //console.log(individualRoute,"individualRoute");
                 tmpResult.from = stopsStationDetails[0];
                 tmpResult.to = stopsStationDetails[stopsStationDetails.length - 1];
 
@@ -382,6 +443,7 @@ async function getRoutes(
                                 stopsArr[0],
                                 stopsArr[stopsArr.length - 1],
                                 routeArrivalTime,
+                                time,
                             );
 
                             tripIdAvailable = tripId;
@@ -449,16 +511,34 @@ async function getRoutes(
                 } else if (individualRoute.type === "transfer") {
                     let perf = performance.now();
                     let transferDuration = 0;
+                    let shapeID = "";
 
-                    if (!cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`]) {
+                    let parentOfTransferOrigin = formatStop(allStops[stopsArr[0]], allStops).station
+                        .id;
+                    let parentOfTransferDestination = formatStop(allStops[stopsArr[1]], allStops)
+                        .station.id;
+
+                    if (!shapeIDs[`${parentOfTransferOrigin}__${parentOfTransferDestination}`]) {
+                        shapeID = allTransfers[
+                            `${parentOfTransferOrigin}__${parentOfTransferDestination}`
+                        ]
+                            ? allTransfers[
+                                  `${parentOfTransferOrigin}__${parentOfTransferDestination}`
+                              ].shape_id
+                            : "";
+                        shapeIDs[`${parentOfTransferOrigin}__${parentOfTransferDestination}`] =
+                            shapeID;
+                    }
+
+                    if (!cachedTimeTransfers[`${stopsArr[0]}__${stopsArr[1]}`]) {
                         transferDuration = await getTransferTime(
                             stopsArr[0],
                             stopsArr[1],
                             allTransfers,
                         );
-                        cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`] = transferDuration;
+                        cachedTimeTransfers[`${stopsArr[0]}__${stopsArr[1]}`] = transferDuration;
                     } else {
-                        transferDuration = cachedTransfers[`${stopsArr[0]}__${stopsArr[1]}`];
+                        transferDuration = cachedTimeTransfers[`${stopsArr[0]}__${stopsArr[1]}`];
                     }
 
                     console.log("TRANSFER TIME", performance.now() - perf);
@@ -582,6 +662,33 @@ async function getRoutes(
         let overallDepartingTime = direction_result[0].schedule.departing_at;
         let overallArrivingTime =
             direction_result[direction_result.length - 1].schedule.arriving_at;
+
+        let polylines = await getPolyline(shapeIDs);
+
+        // console.log(polylines, "polylines");
+
+        // for(let i in direction_result){
+        //     if(direction_result[i].type === 'transfer'){
+        //         console.log(`TRANSFER_${direction_result[i].from.station.id}_${direction_result[i].to.station.id}`)
+        //         direction_result[i].encoded_polyline = polylines.find((p) => p.shape_id === `TRANSFER_${direction_result[i].from.station.id}_${direction_result[i].to.station.id}`)
+
+        //     }
+        // }
+
+        for (let oneDirection_result of direction_result) {
+            if (oneDirection_result.type === "transfer") {
+                console.log(
+                    `TRANSFER_${oneDirection_result.from.station.id}_${oneDirection_result.to.station.id}`,
+                );
+                let polyline = polylines.find(
+                    (p) =>
+                        p.shape_id ===
+                        `TRANSFER_${oneDirection_result.from.station.id}_${oneDirection_result.to.station.id}`,
+                );
+                if (!polyline) continue;
+                oneDirection_result.encoded_polyline = polyline.shape_encoded;
+            }
+        }
 
         result.schedule = Array.isArray(direction_result)
             ? {

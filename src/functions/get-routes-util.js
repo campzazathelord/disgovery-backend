@@ -185,7 +185,7 @@ exports.getTotalFares = function (allFares) {
 };
 
 exports.getNearbyStations = async function (stationArray, allTransfers, allStops) {
-    const RADIUS_STEP = 5000;
+    const RADIUS_STEP = 1000;
     const MAX_RADIUS = 30000;
     const MAX_NEARBY_STATIONS = 1;
     let result = [];
@@ -205,20 +205,20 @@ exports.getNearbyStations = async function (stationArray, allTransfers, allStops
                         result.push(station.stop_id);
                     }
 
-                    for (let i = 0; i < result.length; i++) {
-                        for (let j = i + 1; j < result.length; j++) {
-                            let transferTime = await getTransferTime(
-                                result[i],
-                                result[j],
-                                allTransfers,
-                            );
-                            if (transferTime > 0) {
-                                console.log("Transfer Detected");
-                                result.splice(j, 1);
-                                j--;
-                            }
-                        }
-                    }
+                    // for (let i = 0; i < result.length; i++) {
+                    //     for (let j = i + 1; j < result.length; j++) {
+                    //         let transferTime = await getTransferTime(
+                    //             result[i],
+                    //             result[j],
+                    //             allTransfers,
+                    //         );
+                    //         // if (transferTime > 0) {
+                    //         //     console.log("Transfer Detected");
+                    //         //     result.splice(j, 1);
+                    //         //     j--;
+                    //         // }
+                    //     }
+                    // }
 
                     let childrenStops = [];
                     for (let i in result) {
@@ -306,48 +306,6 @@ exports.groupByRoute = function (realRoutes) {
     return superResult;
 };
 
-exports.getStationDetails = async function (stop_id, type) {
-    //handle google place id in the stop_id arg
-    const tmpStation = await Stop.findOne({ where: { stop_id: stop_id } });
-    let stop_code = tmpStation.stop_code;
-    let en_name = tmpStation.stop_name;
-    let th_name = await Translation.findOne({
-        where: { record_id: stop_id, table_name: "stops", field_name: "stop_name" },
-    });
-
-    let tmpStrDetails = { station: {} };
-
-    if (isFromStation(type)) {
-        tmpStrDetails.station.id = stop_id;
-        tmpStrDetails.station.code = stop_code;
-        tmpStrDetails.station.name = {
-            en: en_name.trim(),
-            th: th_name.translation.trim(),
-        };
-    } else if (isFromGoogle(type)) {
-        tmpStrDetails.station.id =
-            "Do cillum duis laboris, aliquip reprehenderit quis aute aute minim. Sunt nostrud nostrud aute in sed. Velit aute dolor incididunt nostrud aute, laboris aliquip quis nisi elit cupidatat. Fugiat ullamco consectetur proident tempor lorem ullamco dolore, anim elit elit culpa, dolor culpa ex enim velit do ea. Qui irure officia ea et ut qui, nostrud pariatur ad dolore sed lorem consectetur consequat.";
-        tmpStrDetails.station.name = {
-            short_name: "kuy",
-            long_name: "long kuy",
-        };
-    }
-    tmpStrDetails.coordinates = {
-        lat: tmpStation.stop_lat,
-        lng: tmpStation.stop_lon,
-    };
-
-    return tmpStrDetails;
-};
-
-function isFromGoogle(originType) {
-    return originType === "google";
-}
-
-function isFromStation(originType) {
-    return originType === "station";
-}
-
 /**
  *
  *
@@ -357,8 +315,8 @@ function isFromStation(originType) {
  * @returns {number} arriving_in
  * @returns {string} trip_id
  */
-exports.getNextTrainTime = async function (origin_id, destination_id, routeArrivalTime) {
-    let now = dayjs();
+exports.getNextTrainTime = async function (origin_id, destination_id, routeArrivalTime, time) {
+    let now = time;
     let todaysDay = now.day();
     let routeArrivalTimeString = await getGTFSFormattedCurrentTime(routeArrivalTime);
 
@@ -388,6 +346,29 @@ exports.getNextTrainTime = async function (origin_id, destination_id, routeArriv
     }
 
     return { waitTime: parseFloat(trips[0].arriving_in), tripId: trips[0].trip_id };
+};
+
+exports.getPolyline = async function (shapeIDs) {
+    let queryString = ``;
+    let polylines = [];
+
+    Object.keys(shapeIDs).map((key, iteration) => {
+        if (iteration === 0) {
+            queryString += `SELECT shape_id,shape_encoded FROM shapes WHERE shape_id = '${shapeIDs[key]}' `;
+        } else {
+            queryString += `UNION SELECT shape_id,shape_encoded FROM shapes WHERE shape_id = '${shapeIDs[key]}' `;
+        }
+    });
+
+    try {
+        polylines = await sequelize.query(queryString, {
+            type: QueryTypes.SELECT,
+        });
+    } catch (error) {
+        logger.error(`${error}`);
+    }
+
+    return polylines;
 };
 
 exports.getArrayOfNextTrainTimes = async function (array) {

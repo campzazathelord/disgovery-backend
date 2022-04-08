@@ -3,7 +3,7 @@ const sequelize = require("../db/database");
 const fs = require("fs");
 const { getAllTransfers } = require("./get-all-transfers");
 
-const TRANSFER_PENALTY = 10000;
+const TRANSFER_PENALTY = 1000000;
 
 exports.getAdjacency = async function () {
     let adjacencyListMatrix = {};
@@ -29,7 +29,7 @@ exports.getAdjacency = async function () {
             type: QueryTypes.SELECT,
         },
     );
-
+    //console.log(allStations,"allStations")
     let allStationsObject = {};
 
     for (let station of allStations) {
@@ -65,14 +65,14 @@ exports.getAdjacency = async function () {
                     if (allStations[i - 1].stop_id === matrix.node) previousIsRepeated = true;
                 }
 
-                if (!previousIsRepeated)
-                    adjacencyListMatrix[station.stop_id] = [
-                        ...adjacencyListMatrix[station.stop_id],
-                        {
-                            node: allStations[i - 1].stop_id,
-                            weight: allStations[i].timeFromPrevStopSeqInSec,
-                        },
-                    ];
+                // if (!previousIsRepeated)
+                //     adjacencyListMatrix[station.stop_id] = [
+                //         ...adjacencyListMatrix[station.stop_id],
+                //         {
+                //             node: allStations[i - 1].stop_id,
+                //             weight: allStations[i].timeFromPrevStopSeqInSec,
+                //         },
+                //     ];
 
                 if (i !== allStations.length - 1) {
                     let nextIsRepeated = false;
