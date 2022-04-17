@@ -26,7 +26,7 @@ exports.getNearby = async function (lat, lng, maxRadius = DEFAULT_MAX_RADIUS, ma
         //     limit: maxResult || DEFAULT_MAX_RESULT,
         //     where: sequelize.where(distance, { [Op.lte]: maxRadius || DEFAULT_MAX_RADIUS }),
         // });
-        console.log(lat, lng,"lat, lng")
+        //console.log(lat, lng,"lat, lng")
         const nearbyStations = await sequelize.query(
            `SELECT *
             FROM
