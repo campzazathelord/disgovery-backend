@@ -2,7 +2,7 @@ const APIStatus = require("../../configs/api-errors");
 const Route = require("../../models/Route");
 const sequelize = require("../../db/database");
 const dayjs = require("dayjs");
-const util = require('util');
+const util = require("util");
 const { logger } = require("../../configs/config");
 const { generateRoute } = require("../../functions/algorithms");
 const { QueryTypes } = require("sequelize");
@@ -23,6 +23,8 @@ let time, originStationIds, destinationStationIds;
 
 exports.getRoutes = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
+
+    let startTime = dayjs();
 
     try {
         if (!req.body.origin || !req.body.destination)
@@ -51,7 +53,7 @@ exports.getRoutes = async function (req, res) {
             });
         }
 
-        if (time.valueOf() < dayjs().valueOf()) {
+        if (time.valueOf() < startTime.valueOf()) {
             logger.error("error: time is in the past");
             return res.status(APIStatus.BAD_REQUEST.status).send({
                 status: APIStatus.BAD_REQUEST.status,
@@ -195,7 +197,7 @@ exports.getRoutes = async function (req, res) {
             response.length / (originStationIds.length * destinationStationIds.length),
         );
 
-        directionsNumber = Math.max(1,directionsNumber);
+        directionsNumber = Math.max(1, directionsNumber);
         //console.log(`originStationIds.length = ${originStationIds.length}, destinationStationIds.lengt = ${destinationStationIds.length}, directionsNumber ${directionsNumber}`);
         response.sort(function (a, b) {
             return a.schedule.duration - b.schedule.duration;
@@ -206,10 +208,10 @@ exports.getRoutes = async function (req, res) {
             //console.log(`i = ${i}, response.length = ${response.length}, directionsNumber ${directionsNumber}`);
             response.pop();
         }
-        for (let i = 0; i<response.length;i++){
-            for( let j = i+1; j<response.length;j++){
-                if(util.isDeepStrictEqual(response[i],response[j])){
-                    response.splice(j,1);
+        for (let i = 0; i < response.length; i++) {
+            for (let j = i + 1; j < response.length; j++) {
+                if (util.isDeepStrictEqual(response[i], response[j])) {
+                    response.splice(j, 1);
                     j--;
                 }
             }
