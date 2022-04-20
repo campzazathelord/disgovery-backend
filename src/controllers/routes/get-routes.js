@@ -173,6 +173,7 @@ exports.getRoutes = async function (req, res) {
 
         for (let originStationId of originStationIds) {
             for (let destinationStationId of destinationStationIds) {
+                if(originStationId===destinationStationId) continue;
                 perf = performance.now();
                 response.push(
                     ...(await getRoutes(
@@ -192,6 +193,13 @@ exports.getRoutes = async function (req, res) {
                 );
                 console.log("----- FOUND ROUTE IN", performance.now() - perf);
             }
+        }
+
+        if(response.length===0){
+            return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
+                status: APIStatus.INTERNAL.SERVER_ERROR.status,
+                message: "Response is empty (Origin and destination might be the same)",
+            });
         }
 
         let directionsNumber = Math.round(
