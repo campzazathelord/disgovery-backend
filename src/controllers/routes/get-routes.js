@@ -577,11 +577,9 @@ async function getRoutes(
             continue;
         }
 
-        let firstStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station
-            .id;
+        let firstStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station.id;
         let firstZoneOfRoute = realRoutes[i][0].zone_id;
-        let lastStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station
-            .id;
+        let lastStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station.id;
         let lastZoneOfRoute = realRoutes[i][0].zone_id;
         let currentRouteId = realRoutes[i][0].route_id;
         let separateFares,
@@ -613,8 +611,7 @@ async function getRoutes(
                 (jointFareRules[realRoutes[i][j].route_id] &&
                     jointFareRules[realRoutes[i][j].route_id].includes(currentRouteId))
             ) {
-                lastStationOfRoute = formatStop(allStops[realRoutes[i][j].stop_id], allStops)
-                    .station.id;
+                lastStationOfRoute = formatStop(allStops[realRoutes[i][j].stop_id], allStops).station.id;
                 lastZoneOfRoute = realRoutes[i][j].zone_id;
             } else {
                 faresToFind.push({
@@ -740,8 +737,7 @@ function formatStop(stop, allStops) {
 
             stop = allStops[stop.parent_station];
         }
-
-        return {
+        data = {
             station: {
                 id: stop.stop_id,
                 code: stop.stop_code,
@@ -756,6 +752,7 @@ function formatStop(stop, allStops) {
                 lng: parseFloat(stop.stop_lon),
             },
         };
+        return data;
     } catch (error) {
         return {};
     }
