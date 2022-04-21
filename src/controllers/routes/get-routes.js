@@ -171,20 +171,29 @@ exports.getRoutes = async function (req, res) {
 
         const allLinesOfNodes = req.app.get("allLinesOfNodes");
 
+        let departingAt;
+
+        // googleDirections
+        // ? googleDirections[originStationId]
+        //     ? googleDirections[originStationId].schedule.arriving_at
+        //     : undefined
+        // : undefined || undefined,
+
         for (let originStationId of originStationIds) {
             for (let destinationStationId of destinationStationIds) {
                 if(originStationId===destinationStationId) continue;
                 perf = performance.now();
+                if(!googleDirections){
+                    departingAt = time;
+                }else{
+                    departingAt = googleDirections[formatStop(allStops[originStationId],allStops).station.id].schedule.arriving_at;
+                }
                 response.push(
                     ...(await getRoutes(
                         originStationId,
                         destinationStationId,
                         fare_options,
-                        googleDirections
-                            ? googleDirections[originStationId]
-                                ? googleDirections[originStationId].schedule.arriving_at
-                                : undefined
-                            : undefined || undefined,
+                        departingAt,
                         allStops,
                         routeOfStation,
                         allLinesOfNodes,
@@ -406,7 +415,7 @@ async function getRoutes(
             let stopsStationDetails = [];
             let line;
 
-            let routeArrivalTime = time.add(1, "minute");
+            let routeArrivalTime = dayjs(departingAt);
             //let routeArrivalTime = dayjs("2022-03-29T15:16:04+0700" || undefined).add(1, "minute");
             //console.log(groupedRoute,"groupedRoute");
             for (let individualRoute of groupedRoute) {
@@ -445,7 +454,7 @@ async function getRoutes(
                 tmpResult.schedule = {};
                 tmpResult.schedule.departing_at = routeArrivalTime.format();
                 let stopsArr = individualRoute.stops;
-                let waitDuration = 0;
+
                 let departingTime, arrivalTime, duration;
 
                 if (individualRoute.type === "board") {
@@ -469,13 +478,13 @@ async function getRoutes(
                             );
 
                             tripIdAvailable = tripId;
-                            waitDuration = waitTime;
+
 
                             cachedNextTrainTime[
                                 `${stopsArr[0]}__${
                                     stopsArr[stopsArr.length - 1]
                                 }_AT_${formattedRouteArrivalTime}`
-                            ] = { trip_id: tripId, wait_time: waitDuration };
+                            ] = { trip_id: tripId};
                         } else {
                             tripIdAvailable =
                                 cachedNextTrainTime[
@@ -483,12 +492,7 @@ async function getRoutes(
                                         stopsArr[stopsArr.length - 1]
                                     }_AT_${formattedRouteArrivalTime}`
                                 ].trip_id;
-                            waitDuration =
-                                cachedNextTrainTime[
-                                    `${stopsArr[0]}__${
-                                        stopsArr[stopsArr.length - 1]
-                                    }_AT_${formattedRouteArrivalTime}`
-                                ].wait_time;
+                        
                         }
 
                         console.log("NEXT TRAIN TIME", performance.now() - perf);
@@ -524,8 +528,8 @@ async function getRoutes(
                         breakToMainLoop = true;
                         break;
                     }
-
-                    departingTime = routeArrivalTime.add(waitDuration, "second");
+                    
+                    departingTime = routeArrivalTime;
                     arrivalTime = departingTime.add(duration, "second");
                     tmpResult.schedule.departing_at = departingTime.format();
                     tmpResult.schedule.arriving_at = arrivalTime.format();
@@ -566,7 +570,7 @@ async function getRoutes(
                     console.log("TRANSFER TIME", performance.now() - perf);
                     duration = transferDuration;
 
-                    departingTime = routeArrivalTime.add(waitDuration, "second");
+                    departingTime = routeArrivalTime;
                     arrivalTime = departingTime.add(duration, "second");
                     tmpResult.schedule.departing_at = departingTime.format();
                     tmpResult.schedule.arriving_at = arrivalTime.format();
