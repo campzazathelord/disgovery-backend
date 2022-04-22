@@ -281,7 +281,15 @@ exports.groupByRoute = function (realRoutes) {
     for (let j = 1; j < realRoutes.length; j++) {
         //iterate through each stops in each path
         subResult.push(lastStation); //push stop to subResult
-        if (currentRoute === realRoutes[j].route_id) {
+        if (currentRoute === realRoutes[j].route_id 
+            && !(
+                (
+                    (/MRT_BL01_1/.test(realRoutes[j].stop_id) && /MRT_BL01_2/.test(realRoutes[j-1].stop_id)) ||
+                    (/MRT_BL01_1/.test(realRoutes[j-1].stop_id) && /MRT_BL01_2/.test(realRoutes[j].stop_id))
+                )
+            )  
+        ) {
+            
             lastStation = realRoutes[j].stop_id;
             if (j === realRoutes.length - 1) {
                 // if last node of path

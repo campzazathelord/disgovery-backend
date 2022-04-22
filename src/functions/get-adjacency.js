@@ -98,19 +98,34 @@ exports.getAdjacency = async function () {
             }
         }
     }
-
+    
     Object.keys(allTransfers).map((key) => {
         if (Object.keys(adjacencyListMatrix).includes(allTransfers[key].from_stop_id)) {
+            //console.log(allTransfers[key].from_stop_id,"allTransfers[key].from_stop_id");
+            //console.log(/MRT_BL01/i.test(allTransfers[key].from_stop_id),/MRT_BL01/i.test(allTransfers[key].to_stop_id));
+            let weight = allTransfers[key].min_transfer_time +
+                ( 
+                    (
+                        /MRT_BL01_1/i.test(allTransfers[key].from_stop_id) && 
+                        /MRT_BL01_2/i.test(allTransfers[key].to_stop_id)
+                    ) || (
+                        /MRT_BL01_2/i.test(allTransfers[key].from_stop_id) && 
+                        /MRT_BL01_1/i.test(allTransfers[key].to_stop_id)
+                    ) || (
+                        allStationsObject[allTransfers[key].from_stop_id].route_id !==
+                        allStationsObject[allTransfers[key].to_stop_id].route_id
+                    )
+                    ? 0
+                    : TRANSFER_PENALTY
+                );
+                
+
             adjacencyListMatrix[allTransfers[key].from_stop_id] = [
                 ...adjacencyListMatrix[allTransfers[key].from_stop_id],
                 {
                     node: allTransfers[key].to_stop_id,
-                    weight:
-                        allTransfers[key].min_transfer_time +
-                        (allStationsObject[allTransfers[key].from_stop_id].route_id !==
-                        allStationsObject[allTransfers[key].to_stop_id].route_id
-                            ? 0
-                            : TRANSFER_PENALTY),
+                    weight:weight,
+                        
                 },
             ];
         }
