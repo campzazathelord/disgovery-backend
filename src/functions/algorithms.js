@@ -1,5 +1,7 @@
 const fs = require("fs");
 const { logger } = require("../configs/config");
+const { QueryTypes } = require("sequelize");
+const sequelize = require("../db/database");
 
 const maxReturnArr = 6;
 
@@ -161,7 +163,7 @@ class Node {
         this.priority = priority;
     }
 }
-exports.generateRoute = async (origin, destination, allLinesOfNodes) => {
+   exports.generateRoute = async (origin, destination) => {
     let rawdata;
 
     try {
@@ -174,34 +176,46 @@ exports.generateRoute = async (origin, destination, allLinesOfNodes) => {
     let data = JSON.parse(rawdata);
 
     const graph = new WeightedGraph(data);
-
-    const routes = Array.from(
-        new Set(graph.DijkstraFastest(origin, destination).map(JSON.stringify)),
-        JSON.parse,
-    );
-
-    for (let [i, route] of routes.entries()) {
-        let firstStation = allLinesOfNodes[route[0]] || [];
-        let secondStation = allLinesOfNodes[route[1]] || [];
-
-        let lastStation = allLinesOfNodes[route[route.length-1]] || [];
-        let stationBeforLastStation = allLinesOfNodes[route[route.length-2]] || [];
-        if(lastStation.length==1){
-            let result = stationBeforeLastStation.filter(x=>{
-                return x[`route_id`] == stationBeforLastStation[0][`route_id`];
+    const getLineofNode = async (node) => {
+        let queryStr = `SELECT DISTINCT stop_trip.route_id,stop_id
+        FROM (SELECT *
+            FROM stop_times
+            NATURAL JOIN trips) AS stop_trip
+        INNER JOIN routes ON stop_trip.route_id = routes.route_id
+        WHERE stop_id = '${node}';`
+        const lineOfNode = await sequelize.query(
+            queryStr,
+            {
+                type: QueryTypes.SELECT,
+            },
+        );
+        return lineOfNode;
+    };
+    const routes = Array.from(new Set(graph.DijkstraFastest(origin, destination).map(JSON.stringify)), JSON.parse)
+    for(let [i,route] of routes.entries()){
+        let time = route.pop()
+        let firstStation = await getLineofNode(route[0])
+        let secondStation = await getLineofNode(route[1])
+        let secondToLastStation = await getLineofNode(route[route.length-2])
+        let lastStation = await getLineofNode(route[route.length-1])
+        if(firstStation.length == 1){
+            let result =secondStation.filter(x=>{
+                return(x[`route_id`]==firstStation[0][`route_id`])
             })
             if(result.length==0){
-                routes[i].unshift()
+                routes[i].shift()
             }
         }
-        if (firstStation.length == 1) {
-            let result = secondStation.filter((x) => {
-                return x[`route_id`] == firstStation[0][`route_id`];
-            });
-            if (result.length == 0) {
-                routes[i].shift();
+        if(lastStation.length==1){
+            let result =secondToLastStation.filter(x=>{
+                return(x[`route_id`]==lastStation[0][`route_id`])
+            })
+            if(result.length==0){
+                routes[i].pop()
             }
         }
+        routes[i].push(time)
+
     }
     return routes || [];
 };
