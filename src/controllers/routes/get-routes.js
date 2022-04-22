@@ -183,7 +183,7 @@ exports.getRoutes = async function (req, res) {
             for (let destinationStationId of destinationStationIds) {
                 if(originStationId===destinationStationId) continue;
                 perf = performance.now();
-                if(!googleDirections){
+                if(Object.keys(googleDirections).length === 0 || !googleDirections[formatStop(allStops[originStationId],allStops).station.id]){
                     departingAt = time;
                 }else{
                     departingAt = googleDirections[formatStop(allStops[originStationId],allStops).station.id].schedule.arriving_at;
