@@ -3,7 +3,7 @@ const { logger } = require("../configs/config");
 const { QueryTypes } = require("sequelize");
 const sequelize = require("../db/database");
 
-const maxReturnArr = 6;
+const maxReturnArr = 2;
 
 class WeightedGraph {
     constructor(data) {
