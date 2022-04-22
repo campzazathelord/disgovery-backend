@@ -154,7 +154,7 @@ exports.getRoutes = async function (req, res) {
 
         const routeOfStation = await sequelize.query(
             `
-                SELECT zone_id, stop_ids.stop_id, route_id FROM (
+                SELECT zone_id, stop_ids.stop_id, route_id, parent_station FROM (
                         SELECT stop_id, route_id
                         FROM ((SELECT trip_id, stop_id
                             FROM stop_times
@@ -341,7 +341,7 @@ async function getRoutes(
             i--;
         }
     }
-
+    //console.log(allRoutes);
     let routeOfStationObj = {};
     for (let routeObj of routeOfStation) {
         let stationName = routeObj.stop_id;

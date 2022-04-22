@@ -281,22 +281,7 @@ exports.groupByRoute = function (realRoutes) {
     for (let j = 1; j < realRoutes.length; j++) {
         //iterate through each stops in each path
         subResult.push(lastStation); //push stop to subResult
-        if (currentRoute === realRoutes[j].route_id 
-            && !(
-                (
-                    (/MRT_BL01_1/.test(realRoutes[j].stop_id) && /MRT_BL01_2/.test(realRoutes[j-1].stop_id)) ||
-                    (/MRT_BL01_1/.test(realRoutes[j-1].stop_id) && /MRT_BL01_2/.test(realRoutes[j].stop_id))
-                )
-            )  
-        ) {
-            
-            lastStation = realRoutes[j].stop_id;
-            if (j === realRoutes.length - 1) {
-                // if last node of path
-                subResult.push(lastStation); //push last node
-                result.push({ stops: subResult, type: "board", line: currentRoute });
-            }
-        } else {
+        if (!(currentRoute === realRoutes[j].route_id) || (( realRoutes[j].zone_id === realRoutes[j-1].zone_id) && ( realRoutes[j].parent_station !== realRoutes[j-1].parent_station))) {
             // currentRoute != current node route_id
             result.push({ stops: subResult, type: "board", line: currentRoute }); //push all the stops type board
             result.push({
@@ -307,6 +292,14 @@ exports.groupByRoute = function (realRoutes) {
             firstStation = realRoutes[j].stop_id; //reset
             lastStation = realRoutes[j].stop_id; //reset
             currentRoute = realRoutes[j].route_id; //set to the current route_id
+            
+        } else {
+            lastStation = realRoutes[j].stop_id;
+            if (j === realRoutes.length - 1) {
+                // if last node of path
+                subResult.push(lastStation); //push last node
+                result.push({ stops: subResult, type: "board", line: currentRoute });
+            }
         }
     }
 
