@@ -217,5 +217,6 @@ class Node {
         routes[i].push(time)
 
     }
+    //console.log(routes);
     return routes || [];
 };

@@ -174,30 +174,33 @@ exports.getRoutes = async function (req, res) {
         //     ? googleDirections[originStationId].schedule.arriving_at
         //     : undefined
         // : undefined || undefined,
-
+        let cachedRoutes = [];
         for (let originStationId of originStationIds) {
             for (let destinationStationId of destinationStationIds) {
+                let getRoutesResultArray = [];
                 if(originStationId===destinationStationId) continue;
                 if(Object.keys(googleDirections).length === 0 || !googleDirections[formatStop(allStops[originStationId],allStops).station.id]){
                     departingAt = time;
                 }else{
                     departingAt = googleDirections[formatStop(allStops[originStationId],allStops).station.id].schedule.arriving_at;
                 }
-                response.push(
-                    ...(await getRoutes(
-                        originStationId,
-                        destinationStationId,
-                        fare_options,
-                        departingAt,
-                        allStops,
-                        routeOfStation,
-                        allLinesOfNodes,
-                        allTransfers,
-                    )),
+                
+                [getRoutesResultArray,cachedRoutes] = await getRoutes(
+                    originStationId,
+                    destinationStationId,
+                    fare_options,
+                    departingAt,
+                    allStops,
+                    routeOfStation,
+                    allLinesOfNodes,
+                    allTransfers,
+                    cachedRoutes
                 );
+                //console.log(getRoutesResultArray);
+                response.push( ...getRoutesResultArray);
+                
             }
         }
-
         if(response.length===0){
             return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
                 status: APIStatus.INTERNAL.SERVER_ERROR.status,
@@ -321,6 +324,7 @@ async function getRoutes(
     routeOfStation,
     allLinesOfNodes,
     allTransfers,
+    cachedRoutes,
 ) {
     // console.log("from:", originId, " to:", destinationId);
     const allRoutes = await generateRoute(originId, destinationId, allLinesOfNodes);
@@ -333,7 +337,26 @@ async function getRoutes(
             i--;
         }
     }
-    //console.log(allRoutes);
+    for (let i = 0; i<allRoutes.length;i++){
+        if(!cachedRoutes||cachedRoutes.length===0||allRoutes.length===0||!allRoutes)break;
+        for (let j = 0; j < cachedRoutes.length;j++){
+            if(!cachedRoutes||cachedRoutes.length===0||allRoutes.length===0||!allRoutes)continue;
+            if(util.isDeepStrictEqual(allRoutes[i].slice(0,-1),cachedRoutes[j])){
+                // console.log(allRoutes[i].slice(0,-1),"allRoutes[i]");
+                // console.log(cachedRoutes[j],"cachedRoutes");
+                allRoutes.splice(i,1);
+                i--;
+                break;
+            }
+        }
+    }
+
+    cachedRoutes=cachedRoutes.concat(allRoutes.map(a => {return a}));
+    if(allRoutes.length === 0){
+        let resultArr = []
+        return [resultArr,cachedRoutes];
+    }
+
     let routeOfStationObj = {};
     for (let routeObj of routeOfStation) {
         let stationName = routeObj.stop_id;
@@ -702,11 +725,10 @@ async function getRoutes(
         result.origin = direction_result[0].from;
         result.destination = direction_result[direction_result.length - 1].to;
 
-
         resultArr.push(result);
     }
-
-    return resultArr;
+    //console.log(resultArr);
+    return [resultArr,cachedRoutes];
 }
 
 function formatStop(stop, allStops) {
