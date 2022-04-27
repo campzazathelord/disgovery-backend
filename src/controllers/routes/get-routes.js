@@ -105,6 +105,31 @@ exports.getRoutes = async function (req, res) {
                     );
                 directionsFetched.push(allStops[originId].parent_station);
             }
+        } else if (originType === "google") {
+            for (let originId of originStationIds) {
+                if (directionsFetched.includes(allStops[originId].parent_station)) continue;
+
+                let originPlaceId = origin[1];
+
+                googleDirections[formatStop(allStops[originId], allStops).station.id] =
+                    await getDirectionsFromGoogle(
+                        {
+                            type: "place_id",
+                            place_id: originPlaceId,
+                        },
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(allStops[originId].stop_lat),
+                                lng: parseFloat(allStops[originId].stop_lon),
+                            },
+                        },
+                        "walking",
+                        "metric",
+                        time.valueOf(),
+                    );
+                directionsFetched.push(allStops[originId].parent_station);
+            }
         }
 
         if (destinationType === "coordinates") {
@@ -112,7 +137,6 @@ exports.getRoutes = async function (req, res) {
                 if (directionsFetched.includes(allStops[destinationId].parent_station)) continue;
 
                 let destinationCoordinates = destination[1].split(",");
-
 
                 googleDirections[formatStop(allStops[destinationId], allStops).station.id] =
                     await getDirectionsFromGoogle(
@@ -129,6 +153,31 @@ exports.getRoutes = async function (req, res) {
                                 lat: parseFloat(destinationCoordinates[0]),
                                 lng: parseFloat(destinationCoordinates[1]),
                             },
+                        },
+                        "walking",
+                        "metric",
+                        time.valueOf(),
+                    );
+                directionsFetched.push(allStops[destinationId].parent_station);
+            }
+        } else if (destinationType === "google") {
+            for (let destinationId of destinationStationIds) {
+                if (directionsFetched.includes(allStops[destinationId].parent_station)) continue;
+
+                let destinationPlaceId = destination[1];
+
+                googleDirections[formatStop(allStops[destinationId], allStops).station.id] =
+                    await getDirectionsFromGoogle(
+                        {
+                            type: "coordinates",
+                            coordinates: {
+                                lat: parseFloat(allStops[destinationId].stop_lat),
+                                lng: parseFloat(allStops[destinationId].stop_lon),
+                            },
+                        },
+                        {
+                            type: "place_id",
+                            place_id: destinationPlaceId,
                         },
                         "walking",
                         "metric",
@@ -178,14 +227,19 @@ exports.getRoutes = async function (req, res) {
         for (let originStationId of originStationIds) {
             for (let destinationStationId of destinationStationIds) {
                 let getRoutesResultArray = [];
-                if(originStationId===destinationStationId) continue;
-                if(Object.keys(googleDirections).length === 0 || !googleDirections[formatStop(allStops[originStationId],allStops).station.id]){
+                if (originStationId === destinationStationId) continue;
+                if (
+                    Object.keys(googleDirections).length === 0 ||
+                    !googleDirections[formatStop(allStops[originStationId], allStops).station.id]
+                ) {
                     departingAt = time;
-                }else{
-                    departingAt = googleDirections[formatStop(allStops[originStationId],allStops).station.id].schedule.arriving_at;
+                } else {
+                    departingAt =
+                        googleDirections[formatStop(allStops[originStationId], allStops).station.id]
+                            .schedule.arriving_at;
                 }
-                
-                [getRoutesResultArray,cachedRoutes] = await getRoutes(
+
+                [getRoutesResultArray, cachedRoutes] = await getRoutes(
                     originStationId,
                     destinationStationId,
                     fare_options,
@@ -194,14 +248,13 @@ exports.getRoutes = async function (req, res) {
                     routeOfStation,
                     allLinesOfNodes,
                     allTransfers,
-                    cachedRoutes
+                    cachedRoutes,
                 );
                 //console.log(getRoutesResultArray);
-                response.push( ...getRoutesResultArray);
-                
+                response.push(...getRoutesResultArray);
             }
         }
-        if(response.length===0){
+        if (response.length === 0) {
             return res.status(APIStatus.INTERNAL.SERVER_ERROR.status).send({
                 status: APIStatus.INTERNAL.SERVER_ERROR.status,
                 message: "Response is empty (Origin and destination might be the same)",
@@ -337,24 +390,30 @@ async function getRoutes(
             i--;
         }
     }
-    for (let i = 0; i<allRoutes.length;i++){
-        if(!cachedRoutes||cachedRoutes.length===0||allRoutes.length===0||!allRoutes)break;
-        for (let j = 0; j < cachedRoutes.length;j++){
-            if(!cachedRoutes||cachedRoutes.length===0||allRoutes.length===0||!allRoutes)continue;
-            if(util.isDeepStrictEqual(allRoutes[i].slice(0,-1),cachedRoutes[j])){
+    for (let i = 0; i < allRoutes.length; i++) {
+        if (!cachedRoutes || cachedRoutes.length === 0 || allRoutes.length === 0 || !allRoutes)
+            break;
+        for (let j = 0; j < cachedRoutes.length; j++) {
+            if (!cachedRoutes || cachedRoutes.length === 0 || allRoutes.length === 0 || !allRoutes)
+                continue;
+            if (util.isDeepStrictEqual(allRoutes[i].slice(0, -1), cachedRoutes[j])) {
                 // console.log(allRoutes[i].slice(0,-1),"allRoutes[i]");
                 // console.log(cachedRoutes[j],"cachedRoutes");
-                allRoutes.splice(i,1);
+                allRoutes.splice(i, 1);
                 i--;
                 break;
             }
         }
     }
 
-    cachedRoutes=cachedRoutes.concat(allRoutes.map(a => {return a}));
-    if(allRoutes.length === 0){
-        let resultArr = []
-        return [resultArr,cachedRoutes];
+    cachedRoutes = cachedRoutes.concat(
+        allRoutes.map((a) => {
+            return a;
+        }),
+    );
+    if (allRoutes.length === 0) {
+        let resultArr = [];
+        return [resultArr, cachedRoutes];
     }
 
     let routeOfStationObj = {};
@@ -490,12 +549,11 @@ async function getRoutes(
 
                             tripIdAvailable = tripId;
 
-
                             cachedNextTrainTime[
                                 `${stopsArr[0]}__${
                                     stopsArr[stopsArr.length - 1]
                                 }_AT_${formattedRouteArrivalTime}`
-                            ] = { trip_id: tripId};
+                            ] = { trip_id: tripId };
                         } else {
                             tripIdAvailable =
                                 cachedNextTrainTime[
@@ -503,9 +561,7 @@ async function getRoutes(
                                         stopsArr[stopsArr.length - 1]
                                     }_AT_${formattedRouteArrivalTime}`
                                 ].trip_id;
-                        
                         }
-
 
                         if (
                             !cachedTimeBetweenStations[
@@ -526,7 +582,6 @@ async function getRoutes(
                                     `${stopsArr[0]}__${stopsArr[stopsArr.length - 1]}`
                                 ];
                         }
-
                     } catch (error) {
                         logger.error(
                             `No routes from ${stopsArr[0]} to ${
@@ -536,7 +591,7 @@ async function getRoutes(
                         breakToMainLoop = true;
                         break;
                     }
-                    
+
                     departingTime = routeArrivalTime;
                     arrivalTime = departingTime.add(duration, "second");
                     tmpResult.schedule.departing_at = departingTime.format();
@@ -595,9 +650,11 @@ async function getRoutes(
             continue;
         }
 
-        let firstStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station.id;
+        let firstStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station
+            .id;
         let firstZoneOfRoute = realRoutes[i][0].zone_id;
-        let lastStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station.id;
+        let lastStationOfRoute = formatStop(allStops[realRoutes[i][0].stop_id], allStops).station
+            .id;
         let lastZoneOfRoute = realRoutes[i][0].zone_id;
         let currentRouteId = realRoutes[i][0].route_id;
         let separateFares,
@@ -629,7 +686,8 @@ async function getRoutes(
                 (jointFareRules[realRoutes[i][j].route_id] &&
                     jointFareRules[realRoutes[i][j].route_id].includes(currentRouteId))
             ) {
-                lastStationOfRoute = formatStop(allStops[realRoutes[i][j].stop_id], allStops).station.id;
+                lastStationOfRoute = formatStop(allStops[realRoutes[i][j].stop_id], allStops)
+                    .station.id;
                 lastZoneOfRoute = realRoutes[i][j].zone_id;
             } else {
                 faresToFind.push({
@@ -683,7 +741,6 @@ async function getRoutes(
             totalFares = {};
         }
 
-
         let overallDepartingTime = direction_result[0].schedule.departing_at;
         let overallArrivingTime =
             direction_result[direction_result.length - 1].schedule.arriving_at;
@@ -728,7 +785,7 @@ async function getRoutes(
         resultArr.push(result);
     }
     //console.log(resultArr);
-    return [resultArr,cachedRoutes];
+    return [resultArr, cachedRoutes];
 }
 
 function formatStop(stop, allStops) {
