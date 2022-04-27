@@ -6,6 +6,7 @@ const Translation = require("../models/Translation");
 const Stop = require("../models/Stop");
 const dayjs = require("dayjs");
 const { getGTFSFormattedCurrentTime } = require("./get-gtfs-formatted-current-time");
+const { default: axios } = require("axios");
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -238,10 +239,48 @@ exports.getNearbyStations = async function (stationArray, allTransfers, allStops
         let childrenStops = getChildrenStops(stationArray[1], allStops);
 
         return childrenStops;
+    } else if (stationArray[0] === "google") {
+        let location = await getCoordinatesFromGooglePlaceId(stationArray[1]);
+
+        if (location) {
+            for (let r = RADIUS_STEP; r < MAX_RADIUS; r += RADIUS_STEP) {
+                let stations =
+                    (await getNearby(location.lat, location.lng, r, MAX_NEARBY_STATIONS)) || [];
+
+                if (stations.length === 0) continue;
+                else {
+                    for (let station of stations) {
+                        result.push(station.stop_id);
+                    }
+
+                    let childrenStops = [];
+                    for (let i in result) {
+                        childrenStops.push(...getChildrenStops(result[i], allStops));
+                    }
+
+                    childrenStops = [...new Set(childrenStops)];
+
+                    return childrenStops;
+                }
+            }
+        }
     }
 
     return [];
 };
+
+async function getCoordinatesFromGooglePlaceId(place_id) {
+    let response = await axios.get(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place_id}&fields=geometry&key=${process.env.GOOGLE_MAPS_API_KEY}`,
+    );
+    let data = response.data;
+
+    if (data.result.geometry) {
+        return data.result.geometry.location;
+    } else {
+        throw new Error("bad google place id");
+    }
+}
 
 function getChildrenStops(parentStation, allStops) {
     if (!allStops || !parentStation) return [];
@@ -281,7 +320,11 @@ exports.groupByRoute = function (realRoutes) {
     for (let j = 1; j < realRoutes.length; j++) {
         //iterate through each stops in each path
         subResult.push(lastStation); //push stop to subResult
-        if (!(currentRoute === realRoutes[j].route_id) || (( realRoutes[j].zone_id === realRoutes[j-1].zone_id) && ( realRoutes[j].parent_station !== realRoutes[j-1].parent_station))) {
+        if (
+            !(currentRoute === realRoutes[j].route_id) ||
+            (realRoutes[j].zone_id === realRoutes[j - 1].zone_id &&
+                realRoutes[j].parent_station !== realRoutes[j - 1].parent_station)
+        ) {
             // currentRoute != current node route_id
             result.push({ stops: subResult, type: "board", line: currentRoute }); //push all the stops type board
             result.push({
@@ -292,7 +335,6 @@ exports.groupByRoute = function (realRoutes) {
             firstStation = realRoutes[j].stop_id; //reset
             lastStation = realRoutes[j].stop_id; //reset
             currentRoute = realRoutes[j].route_id; //set to the current route_id
-            
         } else {
             lastStation = realRoutes[j].stop_id;
             if (j === realRoutes.length - 1) {
