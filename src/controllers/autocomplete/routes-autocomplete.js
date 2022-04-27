@@ -34,11 +34,21 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
             });
         }
 
+        console.log(response[0].stations);
+
         for (let i in response) {
             let formattedStations = [];
 
             for (let stop of response[i].stations) {
-                formattedStations.push(formatStop(allStops[stop.id], allStops));
+                let formattedStop = formatStop(allStops[stop.id], allStops);
+
+                formattedStations.push({
+                    id: formattedStop.station.id,
+                    code: formattedStop.station.code,
+                    name: formattedStop.station.name,
+                    platform: formattedStop.station.platform,
+                    coordinates: formattedStop.coordinates,
+                });
             }
 
             response[i].stations = formattedStations;
