@@ -12,6 +12,7 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
         if (!query) return res.send(APIStatus.BAD_REQUEST).status(APIStatus.BAD_REQUEST.status);
 
         const routes = req.app.get("routes");
+        const allStops = req.app.get("stops");
 
         const fuzzyResults = fuzzySearch(routes, query, max_result);
 
@@ -19,7 +20,6 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
 
         if (fuzzyResults.length !== 0) {
             let allStopsOfRoutes = req.app.get("allStopsOfRoutes");
-
             Object.keys(fuzzyResults).map((key) => {
                 response.push({
                     route_id: fuzzyResults[key].item.route_id,
@@ -33,8 +33,20 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
                 });
             });
         }
+
+        for (let i in response) {
+            let formattedStations = [];
+
+            for (let stop of response[i].stations) {
+                formattedStations.push(formatStop(allStops[stop.id], allStops));
+            }
+
+            response[i].stations = formattedStations;
+        }
+
         return res.send({ status: APIStatus.OK, data: response }).status(APIStatus.OK.status);
     } catch (error) {
+        logger.error(error.message);
         return res
             .status(APIStatus.INTERNAL.SERVER_ERROR.status)
             .send({ status: { status: APIStatus.INTERNAL.SERVER_ERROR.status, message: error } });
@@ -51,4 +63,43 @@ function fuzzySearch(arr, str, max_result) {
 
     const result = fuse.search(str, { limit: max_result || 6 });
     return result;
+}
+
+function formatStop(stop, allStops) {
+    try {
+        let platform = undefined;
+
+        if (stop.parent_station !== null) {
+            platform = {
+                id: stop.stop_id,
+                name: {
+                    en: stop.stop_name_en,
+                    th: stop.stop_name_th,
+                },
+                code: stop.platform_code,
+            };
+
+            stop = allStops[stop.parent_station];
+        }
+
+        data = {
+            station: {
+                id: stop.stop_id,
+                code: stop.stop_code,
+                name: {
+                    en: stop.stop_name_en,
+                    th: stop.stop_name_th,
+                },
+                platform: platform,
+            },
+            coordinates: {
+                lat: parseFloat(stop.stop_lat),
+                lng: parseFloat(stop.stop_lon),
+            },
+        };
+
+        return data;
+    } catch (error) {
+        return {};
+    }
 }
