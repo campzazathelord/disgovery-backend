@@ -34,8 +34,6 @@ exports.getRoutesAutocomplete = async function getRoutesAutocomplete(req, res) {
             });
         }
 
-        console.log(response[0].stations);
-
         for (let i in response) {
             let formattedStations = [];
 
