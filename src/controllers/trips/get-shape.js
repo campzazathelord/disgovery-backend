@@ -7,8 +7,8 @@ const Shape = require("../../models/Shape");
 
 const CUT_START_RADIUS = 500;
 const CUT_STEP_RADIUS = 100;
-const CUT_MAX_RADIUS = 1000;
-const INTERPOLATION_ITERATION = 10;
+const CUT_MAX_RADIUS = 10000;
+const INTERPOLATION_ITERATION = 100;
 
 exports.getShape = async function (req, res) {
     logger.info(`${req.method} ${req.baseUrl + req.path}`);
@@ -52,7 +52,6 @@ exports.getShape = async function (req, res) {
             message: `Error: Either the server couldn't find a route with route_id ${routeId} or the shape of that route could not be found.`,
         });
 
-    const end_time = performance.now();
     return res.status(APIStatus.OK.status).send({
         status: APIStatus.OK,
         data: encodedShape,
